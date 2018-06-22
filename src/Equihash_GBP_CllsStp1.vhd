@@ -1,0 +1,182 @@
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 		Logotorix
+-- 
+-- Create Date:    12/06/2018 
+-- Design Name: 
+-- Module Name:    Equihash_GBP_CllsStp1 - Behavioral
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+--
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+library work;
+use work.LgGlobal_pkg.all;
+use work.Equihash_pkg.all;
+
+entity Equihash_GBP_CllsStp1 is
+generic(
+	AB_Buff_A		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(0,gcst_WA_Mem);
+	AB_Buff_B		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(100,gcst_WA_Mem)
+);
+port (
+	mBucketRt_Config	: out	std_logic;
+	mBucketRt_IncSet	: out	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
+	mBucketRt_GetSet	: out	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
+	mBucketRt_MemChSel	: out	std_logic; -- '0': A->o; '1': B->o
+	
+	mBucket_Init		: out	std_logic;
+	mBucket_Rdy			: in	std_logic;
+	mBucket_ChunkSel	: out	Natural range 0 to gcst_N_Chunk-1 := 0;
+	mBucket_IncEn		: out std_logic;
+	
+	Mem_AB_Buff_Rd		: out	unsigned(gcst_WA_Mem-1 downto 0);
+	Mem_AB_Buff_Wr		: out	unsigned(gcst_WA_Mem-1 downto 0);
+	
+	sBucket_ChunkSel	: out	Natural range 0 to gcst_N_Chunk-1 := 0;
+	
+	St					: in	std_logic;
+	Ed					: out	std_logic;
+	Bsy					: out	std_logic;
+	
+	Param_r				: out	Natural range 0 to gcst_Round-1 := 0; -- hold during process
+	nxt_St				: out	std_logic;
+	nxt_Ed				: in	std_logic;
+	
+	clk					: in	std_logic;
+	sclr				: in	std_logic;
+	aclr				: in	std_logic
+);
+end Equihash_GBP_CllsStp1;
+
+architecture rtl of Equihash_GBP_CllsStp1 is
+--============================ constant declare ============================--
+constant cst_Expo_Round		: Natural := Fnc_Int2Wd(gcst_Round-1);
+--======================== Altera component declare ========================--
+
+--===================== user-defined component declare =====================--
+
+--============================= signal declare =============================--
+type typ_state is (S_Idle, S_Config, S_Init, S_InitW, S_nxtSt, S_nxtW);
+signal state			: typ_state;
+
+signal sgn_Round		: unsigned(cst_Expo_Round-1 downto 0) := (others => '0');
+signal sgn_mBucket_Rdy	: std_logic;
+--============================ function declare ============================--
+
+begin
+
+mBucketRt_MemChSel <= not mBucketRt_IncSet;
+
+process(aclr,clk)
+begin
+	if(aclr='1')then
+		state <= S_Idle;
+		mBucketRt_Config <= '0';
+		mBucketRt_IncSet	<= '0'; -- Inc channel is B (this module connect to channel B)
+		mBucketRt_GetSet	<= '1'; -- Get channel is A (this module connect to channel B)
+		mBucket_Init <= '0';
+		mBucket_IncEn <= '0';
+		nxt_St <= '0';
+		Ed <= '0';
+		Bsy <= '0';
+		-- signal
+		sgn_Round <= to_unsigned(0,sgn_Round'length);
+		sgn_mBucket_Rdy  <='1';
+	elsif(rising_edge(clk))then
+		if(sclr='1')then
+			state <= S_Idle;
+			mBucketRt_Config <= '0';
+			mBucketRt_IncSet	<= '0'; -- Inc channel is B
+			mBucketRt_GetSet	<= '1'; -- Get channel is A
+			mBucket_Init <= '0';
+			mBucket_IncEn <= '0';
+			nxt_St <= '0';
+			Ed <= '0';
+			Bsy <= '0';
+			-- signal
+			sgn_Round <= to_unsigned(0,sgn_Round'length);
+			sgn_mBucket_Rdy <= '1';
+		else
+			sgn_mBucket_Rdy <= mBucket_Rdy;
+			case state is
+				when S_Idle =>
+					Ed <= '0';
+					if(St = '1')then
+						state <= S_Config;
+						Bsy <= '1';
+					else
+						Bsy <= '0';
+					end if;
+				when S_Config =>
+					mBucketRt_Config	<= '1'; -- config BucketRt
+					if(sgn_Round = gcst_Round-1)then -- last round
+						mBucket_ChunkSel <= 0; -- no care
+						mBucket_IncEn <= '0'; -- no mbucket inc 
+					else
+						mBucket_ChunkSel <= to_integer(sgn_Round+1); -- chunk select (point to next chunk)
+						mBucket_IncEn <= '1'; -- mbucket inc enable
+					end if;
+					sBucket_ChunkSel <= to_integer(sgn_Round);
+					if(sgn_Round(0) <= '0')then -- even turn src data in A and dst data to B
+						mBucketRt_IncSet	<= '0'; -- Inc channel is B(this module connect to channel B)
+						mBucketRt_GetSet	<= '1'; -- Get channel is A(this module connect to channel B)
+						Mem_AB_Buff_Rd		<= AB_Buff_A; -- read buff A
+						Mem_AB_Buff_Wr		<= AB_Buff_B; -- write buff B (to mBucket)
+					else -- odd turn src data in B and dst data to A
+						mBucketRt_IncSet	<= '1'; -- Inc channel is A(this module connect to channel B)
+						mBucketRt_GetSet	<= '0'; -- Get channel is B(this module connect to channel B)
+						Mem_AB_Buff_Rd		<= AB_Buff_B; -- read buff B
+						Mem_AB_Buff_Wr		<= AB_Buff_A; -- write buff A (to mBucket)
+					end if;
+					state <= S_Init;
+				
+				when S_Init =>
+					mBucketRt_Config	<= '0';
+					mBucket_Init <= '1'; -- Init main Bucket couneter
+					state <= S_InitW;
+				
+				when S_InitW =>
+					mBucket_Init <= '0';
+					if(mBucket_Rdy='1' and sgn_mBucket_Rdy = '0')then -- wait Init process finish (rising edge)
+						state <= S_nxtSt;
+					end if;
+				
+				when S_nxtSt =>
+					nxt_St <= '1'; -- start next sm
+					Param_r <= to_integer(sgn_Round); -- set round for read mem addr calculate
+					state <= S_nxtW;
+				
+				when S_nxtW =>
+					nxt_St <= '0';
+					if(nxt_Ed='1')then -- wait next sm finish
+						if(sgn_Round = gcst_Round-1)then -- last round
+							sgn_Round <= to_unsigned(0,sgn_Round'length); -- reset round
+							Ed <= '1';
+							state <= S_Idle;
+						else
+							sgn_Round <= sgn_Round + 1; -- round increase
+							state <= S_Config;
+						end if;
+					end if;
+				
+				when others => State <= S_Idle;
+			end case;
+		end if;
+	end if;
+end process;
+
+end rtl;
+
