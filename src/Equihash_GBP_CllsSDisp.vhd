@@ -45,7 +45,6 @@ port (
 	nxt_Ed			: in	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end Equihash_GBP_CllsSDisp;
@@ -97,68 +96,57 @@ begin
 		sgn_sThCnt <= 0;
 		sgn_sThSet <= (others => '0');
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			state <= S_Idle;
-			nxt_St <= '0';
-			Ed <= '0';
-			Bsy <= '0';
-			-- signal
-			sgn_q <= 0;
-			sgn_sThCnt <= 0;
-			sgn_sThSet <= (others => '0');
-		else
-			case state is
-				when S_Idle =>
-					Ed <= '0';
-					if(St = '1')then
-						state <= S_Robin;
-						Bsy <= '1';
+		case state is
+			when S_Idle =>
+				Ed <= '0';
+				if(St = '1')then
+					state <= S_Robin;
+					Bsy <= '1';
+				else
+					Bsy <= '0';
+				end if;
+			
+			when S_Robin =>
+				if(sgn_sThSt(sgn_sThCnt) = '1')then -- current thread busy
+					if(sgn_sThCnt = Num_sThread-1)then
+						sgn_sThCnt <= 0; -- round
 					else
-						Bsy <= '0';
+						sgn_sThCnt <= sgn_sThCnt + 1; -- increase
 					end if;
-				
-				when S_Robin =>
-					if(sgn_sThSt(sgn_sThCnt) = '1')then -- current thread busy
-						if(sgn_sThCnt = Num_sThread-1)then
+					state <= S_Robin;
+				else -- current thread idle
+					sThread_Sel <= sgn_sThCnt; -- set thread selection
+					Param_q <= to_unsigned(sgn_q, gcst_WA_Mem); -- io
+					nxt_St <= '1';-- start stp 2
+					sgn_sThSet(sgn_sThCnt) <= '1'; -- set thread status
+					state <= S_nxtW;
+				end if;
+			
+			when S_nxtW => -- wait for thread begin (stp2 finish)
+				sgn_sThSet <= (others => '0'); -- clear set signal
+				if(nxt_Ed='1')then
+					if(sgn_q = mBucket_Num-1)then -- last bucket is in process
+						sgn_q <= 0; -- reset sgn_q
+						state <= S_FinW;
+					else
+						sgn_q <= sgn_q + 1; -- point to next bucket
+						if(sgn_sThCnt = Num_sThread-1)then -- point to next thread
 							sgn_sThCnt <= 0; -- round
 						else
 							sgn_sThCnt <= sgn_sThCnt + 1; -- increase
 						end if;
 						state <= S_Robin;
-					else -- current thread idle
-						sThread_Sel <= sgn_sThCnt; -- set thread selection
-						Param_q <= to_unsigned(sgn_q, gcst_WA_Mem); -- io
-						nxt_St <= '1';-- start stp 2
-						sgn_sThSet(sgn_sThCnt) <= '1'; -- set thread status
-						state <= S_nxtW;
 					end if;
-				
-				when S_nxtW => -- wait for thread begin (stp2 finish)
-					sgn_sThSet <= (others => '0'); -- clear set signal
-					if(nxt_Ed='1')then
-						if(sgn_q = mBucket_Num-1)then -- last bucket is in process
-							sgn_q <= 0; -- reset sgn_q
-							state <= S_FinW;
-						else
-							sgn_q <= sgn_q + 1; -- point to next bucket
-							if(sgn_sThCnt = Num_sThread-1)then -- point to next thread
-								sgn_sThCnt <= 0; -- round
-							else
-								sgn_sThCnt <= sgn_sThCnt + 1; -- increase
-							end if;
-							state <= S_Robin;
-						end if;
-					end if;
-				
-				when S_FinW =>
-					if(to_integer(sgn_sThSt) = 0)then -- all thread finish
-						Ed <= '1';
-						state <= S_Idle;
-					end if;
-				
-				when others => State <= S_Idle;
-			end case;
-		end if;
+				end if;
+			
+			when S_FinW =>
+				if(to_integer(sgn_sThSt) = 0)then -- all thread finish
+					Ed <= '1';
+					state <= S_Idle;
+				end if;
+			
+			when others => State <= S_Idle;
+		end case;
 	end if;
 end process;
 

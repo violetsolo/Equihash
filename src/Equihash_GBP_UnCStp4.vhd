@@ -37,8 +37,8 @@ port (
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_Addr_Rd		: out	unsigned(gcst_WA_Mem-1 downto 0);
-	Cache_Addr_Wr		: out	unsigned(gcst_WA_Mem-1 downto 0);
+	Cache_A_Rd		: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Wr		: out	unsigned(gcst_WA_Idx-1 downto 0);
 	Cache_Wr			: out	std_logic;
 	
 	CmpRes				: in	std_logic;
@@ -50,7 +50,6 @@ port (
 	nxt_St				: out	std_logic;
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic;
 	aclr				: in	std_logic
 );
 end Equihash_GBP_UncmpStp4;
@@ -60,7 +59,8 @@ architecture rtl of Equihash_GBP_UncmpStp4 is
 signal cst_IdxCntB_tbl		: typ_1D_Nat(gcst_Round-2 downto 0); -- 0~8
 signal cst_IdxCntR_tbl		: typ_1D_Nat(gcst_Round-2 downto 0);
 constant cst_RamRdDL		: Natural := gcst_IdxCache_RtlDL_Rd;
-constant cst_CmpResDL		: Natural := cst_RamRdDL + 1 + 1 - 1; -- sub next data read lag
+-- sub next data read lag (ram delay(4) + read slave data(1) + compare(1) - read master data(1))
+constant cst_CmpResDL		: Natural := cst_RamRdDL + 1 + 1 - 1; 
 
 --======================== Altera component declare ========================--
 
@@ -114,118 +114,101 @@ begin
 		sgn_tCnt <= 0;
 		sgn_srCnt <= 0;
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			state <= S_Idle;
-			Cache_SelCh <='0';
-			Cache_Wr <= '0';
-			nxt_St <= '0';
-			Ed <= '0';
-			Bsy <= '0';
-			-- signal
-			sgn_SelRam <= '0'; -- must be 0 at first
-			sgn_rCnt <= 0;
-			sgn_mCnt <= 0;
-			sgn_sCnt <= 0;
-			sgn_wCnt <= 0;
-			sgn_tCnt <= 0;
-			sgn_srCnt <= 0;
-		else
-			case state is
-				when S_Idle =>
-					Ed <= '0';
-					nxt_St <= '0';
-					if(St = '1')then
-						Cache_SelCh <= '1'; -- get cache control right
-						state <= S_preSet;
-						Bsy <= '1';
-					else
-						Cache_SelCh <= '0'; -- release cache control right
-						Bsy <= '0';
-					end if;
+		case state is
+			when S_Idle =>
+				Ed <= '0';
+				nxt_St <= '0';
+				if(St = '1')then
+					Cache_SelCh <= '1'; -- get cache control right
+					state <= S_preSet;
+					Bsy <= '1';
+				else
+					Cache_SelCh <= '0'; -- release cache control right
+					Bsy <= '0';
+				end if;
+			
+			when S_preSet => -- set inital value
+				sgn_SelRam <= not sgn_SelRam; -- inverse cache ram
+				sgn_mCnt <= 0; -- set m counter initial value
+				sgn_sCnt <= cst_IdxCntB_tbl(sgn_rCnt); -- set s counter initial value
+				sgn_IdxCntB <= cst_IdxCntB_tbl(sgn_rCnt); -- get counter bound in current turn
+				sgn_IdxCntR <= cst_IdxCntR_tbl(sgn_rCnt); -- get process round in current turn
+				state <= S_mRd;
+			
+			when S_mRd => -- read first comp data
+				Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Idx);
+				state <= S_sRd; 
 				
-				when S_preSet => -- set inital value
-					sgn_SelRam <= not sgn_SelRam; -- inverse cache ram
-					sgn_mCnt <= 0; -- set m counter initial value
-					sgn_sCnt <= cst_IdxCntB_tbl(sgn_rCnt); -- set s counter initial value
-					sgn_IdxCntB <= cst_IdxCntB_tbl(sgn_rCnt); -- get counter bound in current turn
-					sgn_IdxCntR <= cst_IdxCntR_tbl(sgn_rCnt); -- get process round in current turn
-					state <= S_mRd;
-				
-				when S_mRd => -- read first comp data
-					Cache_Addr_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Mem);
-					state <= S_sRd; 
-					
-				when S_sRd => -- read first comp data
-					Cache_Addr_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Mem);
-					state <= S_RdW;
-				
-				when S_RdW =>
-					sgn_wCnt <= sgn_wCnt + 1;
-					if(sgn_wCnt = cst_CmpResDL-1)then -- wait for compare result generate
-						sgn_wCnt <= 0;
-						state <= S_Cmp;
-					end if;
-				
-				when S_Cmp =>
-					if(CmpRes = '1') then -- a < b hold data order
-						state <= S_Fin;
-						sgn_mCnt <= sgn_mCnt + sgn_IdxCntB; -- modify m counter
-						sgn_sCnt <= sgn_sCnt + sgn_IdxCntB; -- modify s counter
-					else -- exchange data order
-						state <= S_Cross;
-					end if;
-				
-				when S_Cross =>
-					if(sgn_tCnt = sgn_IdxCntB)then -- last data in date seq
-						sgn_tCnt <= 0;
-						Cache_Wr <= '0';
-						state <= S_CrossW;
-					else
-						Cache_Addr_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Mem); -- read first date
-						Cache_Addr_Wr <= to_unsigned(sgn_sCnt, gcst_WA_Mem); -- write first data
-						Cache_Wr <= '1';
-						state <= S_Cross1;
-					end if;
-				
-				when S_Cross1 =>
-					sgn_tCnt <= sgn_tCnt + 1; -- read data number increase
-					sgn_mCnt <= sgn_mCnt + 1; -- m counter increase
-					sgn_sCnt <= sgn_sCnt + 1; -- s counter increase
-					Cache_Addr_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Mem); -- read second data
-					Cache_Addr_Wr <= to_unsigned(sgn_mCnt, gcst_WA_Mem); -- write second data
-					Cache_Wr <= '1';
+			when S_sRd => -- read first comp data
+				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Idx);
+				state <= S_RdW;
+			
+			when S_RdW =>
+				sgn_wCnt <= sgn_wCnt + 1;
+				if(sgn_wCnt = cst_CmpResDL-1)then -- wait for compare result generate
+					sgn_wCnt <= 0;
+					state <= S_Cmp;
+				end if;
+			
+			when S_Cmp =>
+				if(CmpRes = '1') then -- a < b hold data order
+					state <= S_Fin;
+					sgn_mCnt <= sgn_mCnt + sgn_IdxCntB; -- modify m counter
+					sgn_sCnt <= sgn_sCnt + sgn_IdxCntB; -- modify s counter
+				else -- exchange data order
 					state <= S_Cross;
-						
-				when S_CrossW =>
-					sgn_wCnt <= sgn_wCnt + 1;
-					if(sgn_wCnt = cst_RamRdDL-1)then -- wait for last data write to ram
-						sgn_wCnt <= 0;
-						state <= S_Fin;
-					end if;
-				
-				when S_Fin =>
-					if(sgn_srCnt = sgn_IdxCntR - 1)then -- last round of current turn
-						sgn_srCnt <= 0;
-						if(sgn_rCnt = gcst_Round-2)then -- last round
-							sgn_SelRam <= '0'; -- set default
-							sgn_rCnt <= 0;
-							nxt_St <= '1'; -- trig next stage work
-							Ed <= '1'; -- end 
-							state <= S_Idle;
-						else
-							sgn_rCnt <= sgn_rCnt + 1; -- round counter increase
-							state <= S_preSet; -- start next round
-						end if;
-					else
-						sgn_srCnt <= + 1; -- round counter of current turn increase
-						sgn_mCnt <= sgn_mCnt + sgn_IdxCntB; -- m counter modify
-						sgn_sCnt <= sgn_sCnt + sgn_IdxCntB; -- s counter modify
-						state <= S_mRd; -- restart read and compare process
-					end if;
+				end if;
+			
+			when S_Cross =>
+				if(sgn_tCnt = sgn_IdxCntB)then -- last data in date seq
+					sgn_tCnt <= 0;
+					Cache_Wr <= '0';
+					state <= S_CrossW;
+				else
+					Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Idx); -- read first date
+					Cache_A_Wr <= to_unsigned(sgn_sCnt, gcst_WA_Idx); -- write first data
+					Cache_Wr <= '1';
+					state <= S_Cross1;
+				end if;
+			
+			when S_Cross1 =>
+				sgn_tCnt <= sgn_tCnt + 1; -- read data number increase
+				sgn_mCnt <= sgn_mCnt + 1; -- m counter increase
+				sgn_sCnt <= sgn_sCnt + 1; -- s counter increase
+				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Idx); -- read second data
+				Cache_A_Wr <= to_unsigned(sgn_mCnt, gcst_WA_Idx); -- write second data
+				Cache_Wr <= '1';
+				state <= S_Cross;
 					
-				when others => State <= S_Idle;
-			end case;
-		end if;
+			when S_CrossW =>
+				sgn_wCnt <= sgn_wCnt + 1;
+				if(sgn_wCnt = cst_RamRdDL-1)then -- wait for last data write to ram
+					sgn_wCnt <= 0;
+					state <= S_Fin;
+				end if;
+			
+			when S_Fin =>
+				if(sgn_srCnt = sgn_IdxCntR - 1)then -- last round of current turn
+					sgn_srCnt <= 0;
+					if(sgn_rCnt = gcst_Round-2)then -- last round
+						sgn_SelRam <= '0'; -- set default
+						sgn_rCnt <= 0;
+						nxt_St <= '1'; -- trig next stage work
+						Ed <= '1'; -- end 
+						state <= S_Idle;
+					else
+						sgn_rCnt <= sgn_rCnt + 1; -- round counter increase
+						state <= S_preSet; -- start next round
+					end if;
+				else
+					sgn_srCnt <= + 1; -- round counter of current turn increase
+					sgn_mCnt <= sgn_mCnt + sgn_IdxCntB; -- m counter modify
+					sgn_sCnt <= sgn_sCnt + sgn_IdxCntB; -- s counter modify
+					state <= S_mRd; -- restart read and compare process
+				end if;
+				
+			when others => State <= S_Idle;
+		end case;
 	end if;
 end process;
 

@@ -30,7 +30,7 @@ constant gcst_Round				: Natural := 10;
 constant gcst_WA_Mem			: Natural := 32;
 constant gcst_WD_Mem			: Natural := 256;
 constant gcst_W_Chunk			: Natural := 20;
-constant gcst_N_Chunk			: Natural := gcst_Round;
+constant gcst_N_Chunk			: Natural := gcst_Round; -- 10 = 200/20
 
 constant gcst_WA_Cache			: Natural := 16;
 constant gcst_WD_Cache_Data		: Natural := gcst_W_Chunk * gcst_N_Chunk; -- 20*10=200
@@ -38,16 +38,19 @@ constant gcst_WD_Cache_Idx		: Natural := 24;
 constant gcst_WD_Cache_Stp		: Natural := 8;
 constant gcst_WD_Cache_Apdix	: Natural := gcst_WD_Cache_Idx + gcst_WD_Cache_Stp; -- 24+8=32
 
-constant gcst_WD_Mem_Apdix		: Natural := gcst_WD_Cache_Apdix;
+constant gcst_WD_Mem_Apdix		: Natural := gcst_WD_Cache_Apdix; -- 32
 
-constant gcst_Cache_IdxSize		: Natural := 2**(gcst_Round-1);
-constant gcst_WD_Idx			: Natural := gcst_WA_Mem;
+constant gcst_Size_Idx			: Natural := 2**(gcst_Round-1); -- 512
+constant gcst_WD_Idx			: Natural := gcst_WD_Cache_Apdix; -- 32
+constant gcst_WA_Idx			: Natural := Fnc_Int2Wd(gcst_Size_Idx-1); -- 9
 
 --types
 type typ_1D_Mem_D is array (natural range<>) of unsigned(gcst_WD_Mem-1 downto 0);
 type typ_1D_Mem_A is array (natural range<>) of unsigned(gcst_WA_Mem-1 downto 0);
 type typ_1D_MemApdix_D is array (natural range<>) of unsigned(gcst_WD_Mem_Apdix-1 downto 0);
 type typ_1D_MemApdix_A is array (natural range<>) of unsigned(gcst_WA_Mem-1 downto 0);
+type typ_1D_Idx_D is array (natural range<>) of unsigned(gcst_WD_Idx-1 downto 0);
+type typ_1D_Idx_A is array (natural range<>) of unsigned(gcst_WA_Idx-1 downto 0);
 
 -- user defined module delay
 constant gcst_BucketDisp_RtlDL_Get		: Natural := gcst_LgRamCounter_RtlDL + 1; -- 4

@@ -44,7 +44,8 @@ port (
 	
 	mBucket_Di			: out unsigned(gcst_WD_Mem-1 downto 0);
 	mBucket_Inc			: out	std_logic;
-	mBucket_IncEn		: in	std_logic;
+	
+	LastRound			: in	std_logic;
 	
 	Mem_Addr			: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_Wr				: out	std_logic;
@@ -52,11 +53,20 @@ port (
 	
 	Param_r				: in	Natural range 0 to gcst_Round-1 := 0;
 	
+	Stp4_IdxReqNum		: out	Natural;
+	Stp4_IdxReq		: out	std_logic;
+	Stp4_IdxAckVal		: in	Natural;
+	Stp4_IdxAck		: in	std_logic;
+	
+	Stp5_IdxReqNum		: out	Natural;
+	Stp5_IdxReq		: out	std_logic;
+	Stp5_IdxAckVal		: in	Natural;
+	Stp5_IdxAck		: in	std_logic;
+	
 	St					: in	std_logic;
 	Ed					: out	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end Equihash_GBP_CllsSThread;
@@ -136,7 +146,6 @@ port (
 	nxt_Ed			: in	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end component;
@@ -156,6 +165,11 @@ port (
 	Cache_Sel		: out	std_logic; -- '1' current sm get control right
 	Acc_Clr			: in	std_logic;
 	
+	IdxReqNum		: out	Natural;
+	IdxReq			: out	std_logic;
+	IdxAckVal		: in	Natural;
+	IdxAck			: in	std_logic;
+	
 	St				: in	std_logic;
 	Ed				: out	std_logic;
 	Bsy				: out	std_logic;
@@ -165,7 +179,6 @@ port (
 	nxt_St			: out	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end component;
@@ -178,9 +191,19 @@ port (
 	Cache_Addr_j	: out	unsigned(gcst_WA_Cache-1 downto 0);
 	Cache_Stp		: out	unsigned(gcst_WD_Cache_Stp-1 downto 0);
 	
+	LastRound		: in	std_logic;
+	
 	mC_Latch		: out	std_logic;
 	
 	mBucket_Inc		: out	std_logic;
+	
+	Mem_Wr			: out	std_logic;
+	Mem_Addr_j		: out	unsigned(gcst_WA_Mem-1 downto 0);
+	
+	IdxReqNum		: out	Natural;
+	IdxReq			: out	std_logic;
+	IdxAckVal		: in	Natural;
+	IdxAck			: in	std_logic;
 	
 	St				: in	std_logic;
 	Ed				: out	std_logic;
@@ -189,7 +212,6 @@ port (
 	Param_sBn		: in	Natural range 0 to sBucket_MaxCap;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end component;
@@ -240,7 +262,6 @@ port (
 	Rdy			: out	std_logic;
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end component;
@@ -280,10 +301,11 @@ signal sgn_Ed_Stp5_Stp3			: std_logic;
 signal sgn_p					: Natural range 0 to sBucket_Num-1;
 signal sgn_sBn					: Natural range 0 to sBucket_MaxCap;
 -- from stp4
-signal sgn_Stp4_j_Mem			: unsigned(gcst_WA_Mem-1 downto 0);
-signal sgn_Stp4_j_Cache			: unsigned(gcst_WA_Cache-1 downto 0); 
+signal sgn_Stp4MemAj			: unsigned(gcst_WA_Mem-1 downto 0);
+signal sgn_Stp4CacheAj			: unsigned(gcst_WA_Cache-1 downto 0); 
 -- from stp5
-signal sgn_Stp5_j_Cache			: unsigned(gcst_WA_Cache-1 downto 0);
+signal sgn_Stp5MemAj			: unsigned(gcst_WA_Mem-1 downto 0);
+signal sgn_Stp5CacheAj			: unsigned(gcst_WA_Cache-1 downto 0);
 -- from mux
 signal sgn_j					: unsigned(gcst_WA_Cache-1 downto 0);
 
@@ -326,21 +348,28 @@ signal sgn_Stp5CacheStp			: unsigned(gcst_WD_Cache_Stp-1 downto 0); -- 8
 signal sgn_Stp5Inc				: std_logic;
 signal sgn_mCollision			: unsigned(gcst_WD_Cache_Data-1 downto 0);
 signal sgn_xCollision			: unsigned(gcst_WD_Cache_Data-1 downto 0);
+signal sgn_xApdix				: unsigned(gcst_WD_Cache_Apdix-1 downto 0);
+signal sgn_xApdix_DL			: unsigned(gcst_WD_Cache_Apdix-1 downto 0);
 
+signal sgn_Stp5MemWr			: std_logic;
+
+signal sgn_MemAj				: unsigned(gcst_WA_Mem-1 downto 0);
+signal sgn_MemAddr				: unsigned(gcst_WA_Mem-1 downto 0);
+signal sgn_MemWr				: std_logic;
 
 -- delay
-constant cst_Stp4MemAddr_DL		: Natural := gcst_LpmRam_RtlDL_Wr + 
+constant cst_MemAddr_DL			: Natural := gcst_LpmRam_RtlDL_Wr + 
 											gcst_AddrAuxCalc_RtlDL + 
 											1 + 1 - 
 											gcst_AddrAuxCalc_RtlDL - 
-											1; -- 3
-signal sgn_Stp4MemAddr_DL		: unsigned(gcst_WA_Mem-1 downto 0);
+											1 + 1; -- 4
+signal sgn_MemAddr_DL			: unsigned(gcst_WA_Mem-1 downto 0);
 -- 
-constant cst_Stp4MemWr_DL		: Natural := gcst_LpmRam_RtlDL_Wr + 
+constant cst_MemWr_DL			: Natural := gcst_LpmRam_RtlDL_Wr + 
 											 gcst_AddrAuxCalc_RtlDL + 
 											 1 + 1 - 
-											 1; -- 5
-signal sgn_Stp4MemWr_DL			: unsigned(0 downto 0);
+											 1 + 1; -- 6
+signal sgn_MemWr_DL				: unsigned(0 downto 0);
 --
 constant cst_Stp4CacheIdx_DL	: Natural := gcst_AddrAuxCalc_RtlDL + 1; -- 3
 signal sgn_Stp4CacheIdx_DL		: unsigned(gcst_WD_Cache_Apdix-1 downto 0);
@@ -354,8 +383,9 @@ signal sgn_Stp5Latch_DL			: unsigned(0 downto 0);
 --
 constant cst_Stp5CacheStp_DL	: Natural := gcst_LpmRam_RtlDL_Wr + 
 											 gcst_AddrAuxCalc_RtlDL + 
-											 1 + 1 + 1; -- 7
-signal sgn_Stp5CacheStp_DL		: unsigned(gcst_WD_Cache_Stp-1 downto 0); -- 8
+											 1 + 1; -- 6
+signal sgn_Stp5CacheStp_DL		: unsigned(gcst_WD_Cache_Stp-1 downto 0);
+signal sgn_Stp5CacheStp_DL1		: unsigned(gcst_WD_Cache_Stp-1 downto 0);
 --
 constant cst_Stp5Inc_DL			: Natural := gcst_LpmRam_RtlDL_Wr + 
 											 gcst_AddrAuxCalc_RtlDL + 
@@ -390,21 +420,25 @@ port map(
 	nxt_Ed			=> sgn_Ed_Stp5_Stp3,--: in	std_logic;
 	
 	clk				=> clk,--: in	std_logic;
-	sclr			=> sclr,--: in	std_logic;
 	aclr			=> aclr--: in	std_logic
 );
 
 inst04: Equihash_GBP_CllsStp4
 port map(
-	Mem_Addr_j		=> sgn_Stp4_j_Mem,--: out	unsigned(gcst_WA_Mem-1 downto 0);
+	Mem_Addr_j		=> sgn_Stp4MemAj,--: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_Wr			=> sgn_Stp4MemWr,--: out	std_logic; -- 1clk delay after Cache_Addr_j output
 	
-	Cache_Addr_j	=> sgn_Stp4_j_Cache,--: out	unsigned(gcst_WA_Cache-1 downto 0); -- hold 2clk every time
+	Cache_Addr_j	=> sgn_Stp4CacheAj,--: out	unsigned(gcst_WA_Cache-1 downto 0); -- hold 2clk every time
 	Cache_Idx		=> sgn_Stp4CacheIdx,--: out	unsigned(gcst_WD_Cache_Apdix - 1 downto 0); -- 24bit Accm value and 8bit 0s  -- 1clk delay after Cache_Addr_j output
 	Cache_IdxWr		=> sgn_Stp4CacheIdxWr,--: out	std_logic; -- 1clk delay after Cache_Addr_j output
 	
 	Cache_Sel		=> sgn_Stp4CacheSel,--: out	std_logic; -- '1' current sm get control right
 	Acc_Clr			=> sgn_Stp3AccClr,--: in	std_logic;
+	
+	IdxReqNum		=> Stp4_IdxReqNum,--(io): out	Natural;
+	IdxReq			=> Stp4_IdxReq,--(io): out	std_logic;
+	IdxAckVal		=> Stp4_IdxAckVal,--(io): in	Natural;
+	IdxAck			=> Stp4_IdxAck,--(io): in	std_logic;
 	
 	St				=> sgn_St_Stp3_Stp4,--: in	std_logic;
 	Ed				=> open,--: out	std_logic;
@@ -415,18 +449,27 @@ port map(
 	nxt_St			=> sgn_St_Stp4_Stp5,--: out	std_logic;
 	
 	clk				=> clk,--: in	std_logic;
-	sclr			=> sclr,--: in	std_logic;
 	aclr			=> aclr--: in	std_logic
 );
 
 inst05: Equihash_GBP_CllsStp5
 port map(
-	Cache_Addr_j	=> sgn_Stp5_j_Cache,--: out	unsigned(gcst_WA_Cache-1 downto 0);
+	Cache_Addr_j	=> sgn_Stp5CacheAj,--: out	unsigned(gcst_WA_Cache-1 downto 0);
 	Cache_Stp		=> sgn_Stp5CacheStp,--: out	unsigned(gcst_WD_Cache_Stp-1 downto 0);
+	
+	LastRound		=> LastRound,--: in	std_logic;
 	
 	mC_Latch		=> sgn_Stp5Latch,--: out	std_logic;
 	
 	mBucket_Inc		=> sgn_Stp5Inc,--: out	std_logic;
+	
+	Mem_Wr			=> sgn_Stp5MemWr,--: out	std_logic;
+	Mem_Addr_j		=> sgn_Stp5MemAj,--: out	unsigned(gcst_WA_Mem-1 downto 0);
+	
+	IdxReqNum		=> Stp5_IdxReqNum,--(io): out	Natural;
+	IdxReq			=> Stp5_IdxReq,--(io): out	std_logic;
+	IdxAckVal		=> Stp5_IdxAckVal,--(io): in	Natural;
+	IdxAck			=> Stp5_IdxAck,--(io): in	std_logic;
 	
 	St				=> sgn_St_Stp4_Stp5,--: in	std_logic;
 	Ed				=> sgn_Ed_Stp5_Stp3,--: out	std_logic;
@@ -435,7 +478,6 @@ port map(
 	Param_sBn		=> sgn_sBn,--: in	Natural range 0 to sBucket_MaxCap;
 	
 	clk				=> clk,--: in	std_logic;
-	sclr			=> sclr,--: in	std_logic;
 	aclr			=> aclr--: in	std_logic
 );
 
@@ -460,7 +502,6 @@ port map(
 	Rdy			=> sgn_sBucket_Rdy,--: out	std_logic;
 	
 	clk			=> clk,--: in	std_logic;
-	sclr		=> sclr,--: in	std_logic := '0';
 	aclr		=> aclr--: in	std_logic := '0'
 );
 
@@ -499,35 +540,59 @@ port map(
 );
 
 -- step 4 part
+-- Mem_Aj and wr sel
+process(clk)
+begin
+	if(rising_edge(clk))then
+		if(sgn_Stp4CacheSel = '1')then
+			sgn_MemAj <= sgn_Stp4MemAj;
+			sgn_MemWr <= sgn_Stp4MemWr;
+		else
+			sgn_MemAj <= sgn_Stp5MemAj;
+			sgn_MemWr <= sgn_Stp5MemWr;
+		end if;
+	end if;
+end process;
+
 -- write Indx to Mem signals gen
 inst10: Equihash_AddrAuxCalc
 generic map(
-	Width_A		=> gcst_WA_Mem--: Natural 32
+	Width_A			=> gcst_WA_Mem--: Natural 32
 )
 port map(
 	AB_M			=> cst_AB_IdxArr_M,--(const): in	unsigned(Width_A-1 downto 0);
 	AB_S			=> cst_AB_IdxArr_Sect,--(const): in	unsigned(Width_A-1 downto 0);
 	
-	Idx				=> sgn_Stp4_j_Mem,--: in	unsigned(Width_A-1 downto 0);
+	Idx				=> sgn_MemAj,--: in	unsigned(Width_A-1 downto 0);
 	Sect			=> to_unsigned(Param_r,gcst_WA_Mem),--: in	unsigned(Width_A-1 downto 0);
 	
-	A_o				=> sgn_Stp4MemAddr,--: out	unsigned(Width_A-1 downto 0);
+	A_o				=> sgn_MemAddr,--: out	unsigned(Width_A-1 downto 0);
 	
 	clk				=> clk--: in	std_logic
 );
 
-Mem_Addr <= sgn_Stp4MemAddr_DL;
-Mem_Wr <= sgn_Stp4MemWr_DL(0);
-Mem_Do <= unsigned(sgn_Cache_Apdix_Do);
+Mem_Addr <= sgn_MemAddr_DL;
+Mem_Wr <= sgn_MemWr_DL(0);
+process(clk)
+begin
+	if(rising_edge(clk))then
+		if(sgn_Stp4CacheSel = '1')then
+			Mem_Do <= unsigned(sgn_Cache_Apdix_Do);
+		else
+			Mem_Do <= sgn_Stp5CacheStp_DL & -- 8bit step value
+					  unsigned(sgn_xApdix(gcst_WD_Cache_Idx-1 downto 0)); -- 24bit latched value
+		end if;
+	end if;
+end process;
 
 -- write Indx to Cache signals gen
 process(clk)
 begin
 	if(rising_edge(clk))then
 		if(sgn_Stp4CacheSel = '1')then
-			sgn_j <= sgn_Stp4_j_Cache;
+			sgn_j <= sgn_Stp4CacheAj;
 		else
-			sgn_j <= sgn_Stp5_j_Cache;
+			sgn_j <= sgn_Stp5CacheAj;
 		end if;
 	end if;
 end process;
@@ -584,6 +649,7 @@ begin
 	if(rising_edge(clk))then
 		if(sgn_Stp5Latch_DL(0) = '1')then
 			sgn_mCollision <= unsigned(sgn_Cache_Data_Do);
+			sgn_xApdix <= unsigned(sgn_Cache_Apdix_Do);
 		end if;
 	end if;
 end process;
@@ -593,24 +659,31 @@ process(clk)
 begin
 	if(rising_edge(clk))then
 		sgn_xCollision <= sgn_mCollision xor unsigned(sgn_Cache_Data_Do);
+		sgn_xApdix_DL <= sgn_xApdix;
 	end if;
 end process;
 
 -- write mem signal gen (to mBucket)
-mBucket_Di <= sgn_Stp5CacheStp_DL & -- 255~248
-			  unsigned(sgn_Cache_Apdix_Do(gcst_WD_Cache_Idx-1 downto 0)) & -- 247~224
-			  to_unsigned(0, gcst_WD_Mem-gcst_WD_Cache_Data-gcst_WD_Cache_Apdix) & -- 223~200
-			  sgn_xCollision; -- 199~0
-mBucket_Inc <= sgn_Stp5Inc_DL(0) and mBucket_IncEn;
+process(clk)
+begin
+	if(rising_edge(clk))then
+		sgn_Stp5CacheStp_DL1 <= sgn_Stp5CacheStp_DL; -- delay 1clk
+	end if;
+end process;
+mBucket_Di <= sgn_Stp5CacheStp_DL1 & -- 255~248(8bit)
+			  unsigned(sgn_xApdix_DL(gcst_WD_Cache_Idx-1 downto 0)) & -- 247~224(24bit)
+			  to_unsigned(0, gcst_WD_Mem-gcst_WD_Cache_Data-gcst_WD_Cache_Apdix) & -- 223~200(24bit)
+			  sgn_xCollision; -- 199~0(200bit)
+mBucket_Inc <= sgn_Stp5Inc_DL(0);
 
 -- delay
 instPP03: Lg_SingalPipe
-generic map(Width_D => gcst_WA_Mem, Num_Pipe => cst_Stp4MemAddr_DL)
-port map(di => sgn_Stp4MemAddr, do => sgn_Stp4MemAddr_DL, clk => clk, aclr => '0');
+generic map(Width_D => gcst_WA_Mem, Num_Pipe => cst_MemAddr_DL)
+port map(di => sgn_MemAddr, do => sgn_MemAddr_DL, clk => clk, aclr => '0');
 --
 instPP04: Lg_SingalPipe
-generic map(Width_D => 1, Num_Pipe => cst_Stp4MemWr_DL)
-port map(di => Fnc_STD2U0(sgn_Stp4MemWr), do => sgn_Stp4MemWr_DL, clk => clk, aclr => aclr);
+generic map(Width_D => 1, Num_Pipe => cst_MemWr_DL)
+port map(di => Fnc_STD2U0(sgn_MemWr), do => sgn_MemWr_DL, clk => clk, aclr => aclr);
 --
 instPP05: Lg_SingalPipe
 generic map(Width_D => gcst_WA_Mem, Num_Pipe => cst_Stp4CacheIdx_DL)

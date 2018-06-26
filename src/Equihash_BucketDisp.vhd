@@ -55,7 +55,6 @@ port (
 	Rdy			: out	std_logic;
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end Equihash_BucketDisp;
@@ -83,7 +82,6 @@ port (
 	Rdy			: out	std_logic;
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end component;
@@ -141,7 +139,6 @@ port map(
 	Rdy			=> Rdy,--: out	std_logic;
 	
 	clk			=> clk,--: in	std_logic;
-	sclr		=> sclr,--: in	std_logic := '0';
 	aclr		=> aclr--: in	std_logic := '0'
 );
 
@@ -180,14 +177,10 @@ begin
 	if(aclr='1')then
 		sgn_Inc_DL <= to_unsigned(0,sgn_Inc_DL'length);
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			sgn_Inc_DL <= to_unsigned(0,sgn_Inc_DL'length);
-		else
-			sgn_Inc_DL(0) <= sgn_Inc;
-			for i in 1 to cst_Inc_DL-1 loop
-				sgn_Inc_DL(i) <= sgn_Inc_DL(i-1);
-			end loop;
-		end if;
+		sgn_Inc_DL(0) <= sgn_Inc;
+		for i in 1 to cst_Inc_DL-1 loop
+			sgn_Inc_DL(i) <= sgn_Inc_DL(i-1);
+		end loop;
 	end if;
 end process;
 

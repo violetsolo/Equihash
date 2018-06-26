@@ -70,7 +70,6 @@ port (
 	S_MemChSel			: in	std_logic; -- '0': A->o; '1': B->o
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic := '0';
 	aclr				: in	std_logic
 );
 end Equihash_mBucket_Wrapper;
@@ -110,7 +109,6 @@ port (
 	Rdy			: out	std_logic;
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end component;
@@ -169,7 +167,6 @@ port (
 	S_GetSet			: in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic := '0';
 	aclr				: in	std_logic
 );
 end component;
@@ -195,7 +192,6 @@ port (
 	S_ChSel				: in	std_logic; -- '0': A->o; '1': B->o
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic := '0';
 	aclr				: in	std_logic
 );
 end component;
@@ -252,7 +248,6 @@ port map(
 	Rdy			=> sgn_ChAo_Rdy,--: out	std_logic;
 	
 	clk			=> clk,--: in	std_logic;
-	sclr		=> sclr,--: in	std_logic := '0';
 	aclr		=> aclr--: in	std_logic := '0'
 );
 
@@ -277,7 +272,6 @@ port map(
 	Rdy			=> sgn_ChBo_Rdy,--: out	std_logic;
 	
 	clk			=> clk,--: in	std_logic;
-	sclr		=> sclr,--: in	std_logic := '0';
 	aclr		=> aclr--: in	std_logic := '0'
 );
 
@@ -332,7 +326,6 @@ port map(
 	S_GetSet			=> S_GetSet,--(io): in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
 	
 	clk					=> clk,--: in	std_logic;
-	sclr				=> sclr,--: in	std_logic := '0';
 	aclr				=> aclr--: in	std_logic
 );
 
@@ -357,7 +350,6 @@ port map(
 	S_ChSel				=> S_MemChSel,--(io): in	std_logic; -- '0': A->o; '1': B->o
 	
 	clk					=> clk,--: in	std_logic;
-	sclr				=> sclr,--: in	std_logic := '0';
 	aclr				=> aclr--: in	std_logic
 );
 

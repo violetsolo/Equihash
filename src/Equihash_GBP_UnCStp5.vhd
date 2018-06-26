@@ -31,7 +31,7 @@ port (
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_Addr_Rd		: out	unsigned(gcst_WA_Mem-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
 	rValid				: out	std_logic;
 	
 	St					: in	std_logic;
@@ -39,7 +39,6 @@ port (
 	Bsy					: out	std_logic;
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic;
 	aclr				: in	std_logic
 );
 end Equihash_GBP_UncmpStp5;
@@ -73,43 +72,33 @@ begin
 		-- signal
 		sgn_Cnt <= 0;
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			state <= S_Idle;
-			Cache_SelCh <='0';
-			rValid <= '0';
-			Ed <= '0';
-			Bsy <= '0';
-			-- signal
-			sgn_Cnt <= 0;
-		else
-			case state is
-				when S_Idle =>
-					Ed <= '0';
-					if(St = '1')then
-						Cache_SelCh <= '1'; -- get cache control right
-						state <= S_Rd;
-						Bsy <= '1';
-					else
-						Cache_SelCh <= '0'; -- release cache control right
-						Bsy <= '0';
-					end if;
+		case state is
+			when S_Idle =>
+				Ed <= '0';
+				if(St = '1')then
+					Cache_SelCh <= '1'; -- get cache control right
+					state <= S_Rd;
+					Bsy <= '1';
+				else
+					Cache_SelCh <= '0'; -- release cache control right
+					Bsy <= '0';
+				end if;
+			
+			when S_Rd =>
+				if(sgn_Cnt = 2**(gcst_Round-1))then
+					sgn_Cnt <= 0;
+					rValid <= '0';
+					Ed <= '1';
+					state <= S_Idle;
+				else
+					sgn_Cnt <= sgn_Cnt + 1;
+					Cache_A_Rd <= to_unsigned(sgn_Cnt, gcst_WA_Idx);
+					rValid <= '1';
+				end if;
+			
 				
-				when S_Rd =>
-					if(sgn_Cnt = 2**(gcst_Round-1))then
-						sgn_Cnt <= 0;
-						rValid <= '0';
-						Ed <= '1';
-						state <= S_Idle;
-					else
-						sgn_Cnt <= sgn_Cnt + 1;
-						Cache_Addr_Rd <= to_unsigned(sgn_Cnt, gcst_WA_Mem);
-						rValid <= '1';
-					end if;
-				
-					
-				when others => State <= S_Idle;
-			end case;
-		end if;
+			when others => State <= S_Idle;
+		end case;
 	end if;
 end process;
 

@@ -28,8 +28,8 @@ use work.Equihash_pkg.all;
 
 entity Equihash_GBP_UncmpStp2 is
 port (
-	Cache_Addr_Rd		: out	unsigned(gcst_WA_Mem-1 downto 0);
-	Cache_AddrWrGen_Rst	: out	std_logic;
+	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_AWrGen_Rst	: out	std_logic;
 	
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
@@ -45,7 +45,6 @@ port (
 	nxt_St				: out	std_logic;
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic;
 	aclr				: in	std_logic
 );
 end Equihash_GBP_UncmpStp2;
@@ -63,7 +62,7 @@ signal state			: typ_state;
 
 signal sgn_rCnt		: Natural range 0 to gcst_Round-1; -- 0~9
 signal sgn_rCnt_inv	: Natural range 0 to gcst_Round-1; -- 0~9
-signal sgn_mCnt		: Natural range 0 to gcst_Cache_IdxSize; -- 0~512
+signal sgn_mCnt		: Natural range 0 to gcst_Size_Idx; -- 0~512
 
 signal sgn_SelRam		: std_logic;
 signal sgn_Mem_RdBsy	: std_logic;
@@ -83,7 +82,7 @@ process(aclr,clk)
 begin
 	if(aclr='1')then
 		state <= S_Idle;
-		Cache_AddrWrGen_Rst <= '0';
+		Cache_AWrGen_Rst <= '0';
 		Cache_SelCh <= '0';
 		Mem_Rd <= '0';
 		sgn_SelRam <= '0';
@@ -96,72 +95,56 @@ begin
 		sgn_mCnt <= 0;
 		sgn_Mem_RdBsy <= '0';
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			state <= S_Idle;
-			Cache_AddrWrGen_Rst <= '0';
-			Cache_SelCh <= '0';
-			Mem_Rd <= '0';
-			nxt_St <= '0';
-			Ed <= '0';
-			Bsy <= '0';
-			-- signal
-			sgn_rCnt_inv <= gcst_Round-1;
-			sgn_rCnt <= 0;
-			sgn_mCnt <= 0;
-			sgn_SelRam <= '0'; -- must be 0 at first
-			sgn_Mem_RdBsy <= '0';
-		else
-			sgn_Mem_RdBsy <= Mem_RdBsy;
-			case state is
-				when S_Idle =>
-					Ed <= '0';
-					nxt_St <= '0';
-					if(St = '1')then
-						Cache_SelCh <= '1';
+		sgn_Mem_RdBsy <= Mem_RdBsy;
+		case state is
+			when S_Idle =>
+				Ed <= '0';
+				nxt_St <= '0';
+				if(St = '1')then
+					Cache_SelCh <= '1';
+					state <= S_preRd;
+					Bsy <= '1';
+				else
+					Cache_SelCh <= '0';
+					Bsy <= '0';
+				end if;
+			
+			when S_preRd =>
+				sgn_SelRam <= not sgn_SelRam; -- cross ram A and ram B
+				Cache_AWrGen_Rst <= '1'; -- reset cache write address generator
+				Mem_Addr_r <= to_unsigned(sgn_rCnt_inv,gcst_WA_Mem); -- set Mem addr r
+				state <= S_Rd;
+			
+			when S_Rd =>
+				Cache_AWrGen_Rst <= '0';
+				if(sgn_mCnt = cst_IdxCntB_tbl(sgn_rCnt))then-- last value
+					sgn_mCnt <= 0; -- cache read addr reset
+					Mem_Rd <= '0'; -- read mem disable
+					state <= S_RdW;
+				else
+					Mem_Rd <= '1'; -- read mem enable
+					Cache_A_Rd <= to_unsigned(sgn_mCnt,gcst_WA_Idx);
+					sgn_mCnt <= sgn_mCnt + 1; -- cache read addr increase
+				end if;
+			
+			when S_RdW =>
+				if(Mem_RdBsy = '0' and sgn_Mem_RdBsy = '1')then -- falling edge
+					if(sgn_rCnt_inv = 0)then -- last round
+						sgn_rCnt_inv <= gcst_Round-1; -- reset round counter
+						sgn_rCnt <= 0; -- reset round counter
+						sgn_SelRam <= '0'; -- reset cross state
+						nxt_St <= '1';
+						Ed <= '1';
+						state <= S_Idle;
+					else
+						sgn_rCnt_inv <= sgn_rCnt_inv - 1; -- round counter decrease
+						sgn_rCnt <= sgn_rCnt + 1; -- round counter increase
 						state <= S_preRd;
-						Bsy <= '1';
-					else
-						Cache_SelCh <= '0';
-						Bsy <= '0';
 					end if;
+				end if;
 				
-				when S_preRd =>
-					sgn_SelRam <= not sgn_SelRam; -- cross ram A and ram B
-					Cache_AddrWrGen_Rst <= '1'; -- reset cache write address generator
-					Mem_Addr_r <= to_unsigned(sgn_rCnt_inv,gcst_WA_Mem); -- set Mem addr r
-					state <= S_Rd;
-				
-				when S_Rd =>
-					Cache_AddrWrGen_Rst <= '0';
-					if(sgn_mCnt = cst_IdxCntB_tbl(sgn_rCnt))then-- last value
-						sgn_mCnt <= 0; -- cache read addr reset
-						Mem_Rd <= '0'; -- read mem disable
-						state <= S_RdW;
-					else
-						Mem_Rd <= '1'; -- read mem enable
-						Cache_Addr_Rd <= to_unsigned(sgn_mCnt,gcst_WA_Mem);
-						sgn_mCnt <= sgn_mCnt + 1; -- cache read addr increase
-					end if;
-				
-				when S_RdW =>
-					if(Mem_RdBsy = '0' and sgn_Mem_RdBsy = '1')then -- falling edge
-						if(sgn_rCnt_inv = 0)then -- last round
-							sgn_rCnt_inv <= gcst_Round-1; -- reset round counter
-							sgn_rCnt <= 0; -- reset round counter
-							sgn_SelRam <= '0'; -- reset cross state
-							nxt_St <= '1';
-							Ed <= '1';
-							state <= S_Idle;
-						else
-							sgn_rCnt_inv <= sgn_rCnt_inv - 1; -- round counter decrease
-							sgn_rCnt <= sgn_rCnt + 1; -- round counter increase
-							state <= S_preRd;
-						end if;
-					end if;
-					
-				when others => State <= S_Idle;
-			end case;
-		end if;
+			when others => State <= S_Idle;
+		end case;
 	end if;
 end process;
 

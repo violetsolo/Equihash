@@ -80,7 +80,6 @@ port (
 	S_GetSet			: in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic := '0';
 	aclr				: in	std_logic
 );
 end Equihash_BucketRt2X2;
@@ -160,17 +159,12 @@ begin
 		sgn_Inc <= '0';
 		sgn_Get <= '0';
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			sgn_Inc <= '0';
-			sgn_Get <= '0';
-		else
-			if(M_Config='1')then
-				sgn_Inc <= M_IncSet;
-				sgn_Get <= M_GetSet;
-			elsif(S_Config='1')then
-				sgn_Inc <= S_IncSet;
-				sgn_Get <= S_GetSet;
-			end if;
+		if(M_Config='1')then
+			sgn_Inc <= M_IncSet;
+			sgn_Get <= M_GetSet;
+		elsif(S_Config='1')then
+			sgn_Inc <= S_IncSet;
+			sgn_Get <= S_GetSet;
 		end if;
 	end if;
 end process;

@@ -38,23 +38,21 @@ generic(
 );
 port (
 	Wr			: in	unsigned(Num_Ch-1 downto 0);
-	A_Wr		: in	typ_1D_Word4(Num_Ch-1 downto 0);
-	Di			: in	typ_1D_Word4(Num_Ch-1 downto 0);
-	A_Rd		: in	typ_1D_Word4(Num_Ch-1 downto 0);
+	A_Wr		: in	typ_1D_Idx_A(Num_Ch-1 downto 0);
+	Di			: in	typ_1D_Idx_D(Num_Ch-1 downto 0); -- index 4word
+	A_Rd		: in	typ_1D_Idx_A(Num_Ch-1 downto 0);
 	Do			: out	unsigned(gcst_WD_Idx-1 downto 0);
 	
 	SelCh		: in	unsigned(Num_Ch-1 downto 0);
 	SelRam		: in	unsigned(Num_Ch-1 downto 0); -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end Equihash_GBP_UnCRam;
 
 architecture rtl of Equihash_GBP_UnCRam is
 --============================ constant declare ============================--
-constant cst_WA		: Natural := Fnc_Int2Wd(gcst_Cache_IdxSize-1);
 
 --======================== Altera component declare ========================--
 component altsyncram
@@ -71,12 +69,12 @@ generic (
 	outdata_reg_b					:	string := "CLOCK0";
 	power_up_uninitialized			:	string := "FALSE";
 	read_during_write_mode_mixed_ports	:	string := "OLD_DATA";--"DONT_CARE";
-	numwords_a						:	natural := gcst_Cache_IdxSize;
-	numwords_b						:	natural := gcst_Cache_IdxSize;
+	numwords_a						:	natural := gcst_Size_Idx;
+	numwords_b						:	natural := gcst_Size_Idx;
 	width_a							:	natural := gcst_WD_Idx;
 	width_b							:	natural := gcst_WD_Idx;
-	widthad_a						:	natural := cst_WA; -- log2(128)
-	widthad_b						:	natural := cst_WA; -- log2(128)
+	widthad_a						:	natural := gcst_WA_Idx; -- log2(128)
+	widthad_b						:	natural := gcst_WA_Idx; -- log2(128)
 	width_byteena_a					:	natural := 1
 );
 port(
@@ -117,7 +115,6 @@ port (
 	Sel			: in	unsigned(Num-1 downto 0);
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '1';
 	aclr		: in	std_logic := '1'
 );
 end component;
@@ -125,28 +122,28 @@ end component;
 
 --============================= signal declare =============================--
 signal sgn_RamA_Do			: std_logic_vector(gcst_WD_Idx-1 downto 0);
-signal sgn_RamA_A_Rd		: std_logic_vector(cst_WA-1 downto 0);
+signal sgn_RamA_A_Rd		: std_logic_vector(gcst_WA_Idx-1 downto 0);
 signal sgn_RamA_Di			: std_logic_vector(gcst_WD_Idx-1 downto 0);
-signal sgn_RamA_A_Wr		: std_logic_vector(cst_WA-1 downto 0);
+signal sgn_RamA_A_Wr		: std_logic_vector(gcst_WA_Idx-1 downto 0);
 signal sgn_RamA_Wr			: std_logic;
 signal sgn_RamB_Do			: std_logic_vector(gcst_WD_Idx-1 downto 0);
-signal sgn_RamB_A_Rd		: std_logic_vector(cst_WA-1 downto 0);
+signal sgn_RamB_A_Rd		: std_logic_vector(gcst_WA_Idx-1 downto 0);
 signal sgn_RamB_Di			: std_logic_vector(gcst_WD_Idx-1 downto 0);
-signal sgn_RamB_A_Wr		: std_logic_vector(cst_WA-1 downto 0);
+signal sgn_RamB_A_Wr		: std_logic_vector(gcst_WA_Idx-1 downto 0);
 signal sgn_RamB_Wr			: std_logic;
 
 type typ_1D_Fmt is array (natural range <>) of unsigned(Num_Ch-1 downto 0);
 signal sgn_Di				: typ_1D_Fmt(gcst_WD_Idx-1 downto 0);
-signal sgn_A_Wr				: typ_1D_Fmt(cst_WA-1 downto 0);
-signal sgn_A_Rd				: typ_1D_Fmt(cst_WA-1 downto 0);
+signal sgn_A_Wr				: typ_1D_Fmt(gcst_WA_Idx-1 downto 0);
+signal sgn_A_Rd				: typ_1D_Fmt(gcst_WA_Idx-1 downto 0);
 
 
 signal sgn_SelRam			: std_logic;
 signal sgn_SelRam_t			: unsigned(Num_Ch-1 downto 0);
 
-signal sgn_Mux_A_Rd			: unsigned(cst_WA-1 downto 0);
+signal sgn_Mux_A_Rd			: unsigned(gcst_WA_Idx-1 downto 0);
 signal sgn_Mux_Di			: unsigned(gcst_WD_Idx-1 downto 0);
-signal sgn_Mux_A_Wr			: unsigned(cst_WA-1 downto 0);
+signal sgn_Mux_A_Wr			: unsigned(gcst_WA_Idx-1 downto 0);
 signal sgn_Mux_Wr			: std_logic;
 --============================ function declare ============================--
 
@@ -199,7 +196,7 @@ begin
 end process;
 
 -- A_Rd A_Wr
-i0100: for i in 0 to  cst_WA-1 generate
+i0100: for i in 0 to  gcst_WA_Idx-1 generate
 	-- A_Rd
 	inst04:Lg_Mux_nL1b_T2
 	port map(
@@ -208,7 +205,6 @@ i0100: for i in 0 to  cst_WA-1 generate
 		Sel			=> SelCh,--: in	unsigned(Num-1 downto 0);
 		
 		clk			=> '0',--: in	std_logic;
-		sclr		=> '0',--: in	std_logic := '1';
 		aclr		=> '0'--: in	std_logic := '1'
 	);
 	-- A_Wr
@@ -219,12 +215,11 @@ i0100: for i in 0 to  cst_WA-1 generate
 		Sel			=> SelCh,--: in	unsigned(Num-1 downto 0);
 		
 		clk			=> '0',--: in	std_logic;
-		sclr		=> '0',--: in	std_logic := '1';
 		aclr		=> '0'--: in	std_logic := '1'
 	);
 end generate i0100;
 
-i1100: for i in 0 to cst_WA-1 generate
+i1100: for i in 0 to gcst_WA_Idx-1 generate
 	i1110: for j in 0 to Num_Ch-1 generate
 		sgn_A_Rd(i)(j) <= A_Rd(j)(i);
 		sgn_A_Wr(i)(j) <= A_Wr(j)(i);
@@ -240,7 +235,6 @@ i0200: for i in 0 to  gcst_WD_Idx-1 generate
 		Sel			=> SelCh,--: in	unsigned(Num-1 downto 0);
 		
 		clk			=> '0',--: in	std_logic;
-		sclr		=> '0',--: in	std_logic := '1';
 		aclr		=> '0'--: in	std_logic := '1'
 	);
 end generate i0200;
@@ -259,7 +253,6 @@ port map(
 	Sel			=> SelCh,--: in	unsigned(Num-1 downto 0);
 	
 	clk			=> '0',--: in	std_logic;
-	sclr		=> '0',--: in	std_logic := '1';
 	aclr		=> '0'--: in	std_logic := '1'
 );
 
@@ -282,17 +275,12 @@ begin
 		sgn_RamA_Wr <= '0';
 		sgn_RamB_Wr <= '0';
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			sgn_RamA_Wr <= '0';
+		if(sgn_SelRam = '0')then -- Ai
+			sgn_RamA_Wr <= sgn_Mux_Wr;
 			sgn_RamB_Wr <= '0';
 		else
-			if(sgn_SelRam = '0')then -- Ai
-				sgn_RamA_Wr <= sgn_Mux_Wr;
-				sgn_RamB_Wr <= '0';
-			else
-				sgn_RamA_Wr <= '0';
-				sgn_RamB_Wr <= sgn_Mux_Wr;
-			end if;
+			sgn_RamA_Wr <= '0';
+			sgn_RamB_Wr <= sgn_Mux_Wr;
 		end if;
 	end if;
 end process;

@@ -56,8 +56,8 @@ port (
 	Bucket_Inc			: in	std_logic;
 	-- read data from buffer (memory)
 	Mem_p1_A			: out	unsigned(gcst_WA_Mem-1 downto 0);
-	Mem_p1_Di			: in	unsigned(gcst_WD_Mem-1 downto 0);
 	Mem_p1_Rd			: out	std_logic;
+	Mem_p1_Di			: in	unsigned(gcst_WD_Mem-1 downto 0);
 	Mem_p1_RdAck		: in	std_logic;
 	-- write index info into memory
 	Mem_p2_A			: out	typ_1D_MemApdix_A(Num_sThread-1 downto 0);
@@ -67,12 +67,19 @@ port (
 	Mem_p3_A			: out	typ_1D_Mem_A(Num_sThread-1 downto 0);
 	Mem_p3_Do			: out	typ_1D_Mem_D(Num_sThread-1 downto 0);
 	Mem_p3_Wr			: out	unsigned(Num_sThread-1 downto 0);
+	-- read index from buffer (memory)
+	Mem_p4_A			: out	unsigned(gcst_WA_Mem-1 downto 0);
+	Mem_p4_Rd			: out	std_logic;
+	Mem_p4_Di			: in	unsigned(gcst_WD_Mem_Apdix-1 downto 0);
+	Mem_p4_RdAck		: in	std_logic;
+	-- result
+	ResValid			: out	std_logic;
+	Res					: out	unsigned(gcst_WD_Idx-1 downto 0);
 	-- GBP process strat
 	St					: in	std_logic;
 	Ed					: out	std_logic;
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic
 );
 end Equihash_GBP_Wrapper;
@@ -80,6 +87,9 @@ end Equihash_GBP_Wrapper;
 architecture rtl of Equihash_GBP_Wrapper is
 --============================ constant declare ============================--
 constant cst_mBucket_CntSumDL	: Natural := Fnc_Int2Wd(Num_sThread-1);
+constant cst_AB_IdxArr_M		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap*mBucket_Num*2,gcst_WA_Mem);
+constant cst_AB_IdxArr_Sect		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap,gcst_WA_Mem);
+
 --======================== Altera component declare ========================--
 
 --===================== user-defined component declare =====================--
@@ -106,8 +116,9 @@ port (
 	mBucket_Get					: out	std_logic;
 	mBucket_GetIdx				: out unsigned(gcst_W_Chunk-1 downto 0); -- size same as chunk data
 	mBucket_Cnt					: in	Natural range 0 to mBucket_MaxCap;
-		
-	mBucket_IncEn				: out std_logic;
+	
+	IdxMngRst					: out	std_logic;
+	LastRound					: out std_logic;
 	
 	sBucket_ChunkSel			: out	Natural range 0 to gcst_N_Chunk-1;
 
@@ -125,7 +136,6 @@ port (
 	Ed							: out	std_logic;
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic;
 	aclr				: in	std_logic
 );
 end component;
@@ -148,7 +158,8 @@ port (
 	
 	mBucket_Di			: out unsigned(gcst_WD_Mem-1 downto 0);
 	mBucket_Inc			: out	std_logic;
-	mBucket_IncEn		: in	std_logic;
+	
+	LastRound			: in	std_logic;
 	
 	Mem_Addr			: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_Wr				: out	std_logic;
@@ -156,11 +167,20 @@ port (
 	
 	Param_r				: in	Natural range 0 to gcst_Round-1 := 0;
 	
+	Stp4_IdxReqNum		: out	Natural;
+	Stp4_IdxReq			: out	std_logic;
+	Stp4_IdxAckVal		: in	Natural;
+	Stp4_IdxAck			: in	std_logic;
+	
+	Stp5_IdxReqNum		: out	Natural;
+	Stp5_IdxReq			: out	std_logic;
+	Stp5_IdxAckVal		: in	Natural;
+	Stp5_IdxAck			: in	std_logic;
+	
 	St					: in	std_logic;
 	Ed					: out	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end component;
@@ -209,7 +229,6 @@ port (
 	S_MemChSel			: in	std_logic; -- '0': A->o; '1': B->o
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic := '0';
 	aclr				: in	std_logic
 );
 end component;
@@ -240,16 +259,60 @@ port (
 	aclr		: in	std_logic
 );
 end component;
+
+component Equihash_GBP_UnCompress
+generic(
+	Device_Family		: string := Device_Family;
+	AB_IdxArr_M			: Natural := to_integer(cst_AB_IdxArr_M);
+	AB_IdxArr_Sect		: Natural := to_integer(cst_AB_IdxArr_Sect)
+);
+port (
+	Num_Idx				: in	Natural; -- must be hold outter
+	
+	Mem_A				: out	unsigned(gcst_WA_Mem-1 downto 0);
+	Mem_Rd				: out	std_logic;
+	Mem_Di				: in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_RdAck			: in	std_logic;
+	
+	ResValid			: out	std_logic;
+	Res					: out	unsigned(gcst_WD_Idx-1 downto 0);
+	
+	St					: in	std_logic;
+	Ed					: out	std_logic;
+	
+	clk			: in	std_logic;
+	aclr		: in	std_logic
+);
+end component;
+
+component Equihash_GBP_IdxMng
+generic(
+	Num_Ch		: Natural := Num_sThread
+);
+port (
+	ReqNum	: in	typ_1D_Nat(Num_Ch-1 downto 0);
+	Req		: in	unsigned(Num_Ch-1 downto 0);
+	
+	AckVal	: out	Natural;
+	Ack		: out	unsigned(Num_Ch-1 downto 0);
+	
+	TotNum	: out	Natural;
+	Rst		: in	std_logic;
+	
+	clk		: in	std_logic;
+	aclr	: in	std_logic
+);
+end component;
 --============================= signal declare =============================--
-signal sgn_r				: Natural range 0 to gcst_Round-1;
+signal sgn_r					: Natural range 0 to gcst_Round-1;
 
-signal sgn_sThread_Ed		: unsigned(Num_sThread-1 downto 0);
+signal sgn_sThread_Ed			: unsigned(Num_sThread-1 downto 0);
 
-signal sgn_sBucket_Di		: unsigned(gcst_WD_Mem-1 downto 0);
-signal sgn_sBucket_Inc		: unsigned(Num_sThread-1 downto 0);
-signal sgn_sThread_Sel		: Natural range 0 to Num_sThread-1;
-signal sgn_sThread_St		: unsigned(Num_sThread-1 downto 0);
-signal sgn_sThread_St_org	: std_logic;
+signal sgn_sBucket_Di			: unsigned(gcst_WD_Mem-1 downto 0);
+signal sgn_sBucket_Inc			: unsigned(Num_sThread-1 downto 0);
+signal sgn_sThread_Sel			: Natural range 0 to Num_sThread-1;
+signal sgn_sThread_St			: unsigned(Num_sThread-1 downto 0);
+signal sgn_sThread_St_org		: std_logic;
 
 signal sgn_mBucketRt_Config		: std_logic;
 signal sgn_mBucketRt_IncSet		: std_logic; -- '0': A->A, B->B; '1': A->B, B->A
@@ -271,11 +334,25 @@ signal sgn_mBucket_Inc			: unsigned(Num_sThread-1 downto 0);
 
 signal sgn_Bucket_Rdy			: unsigned(Num_sThread-1 downto 0); -- for outter
 
-signal sgn_mBucket_IncEn		: std_logic;
+signal sgn_LastRound				: std_logic;
 signal sgn_mBucket_CntSum		: Natural;
 
 signal sgn_sBucket_ChunkSel		: Natural range 0 to gcst_N_Chunk-1;
 
+signal sgn_UnCompress_St		: std_logic;
+
+signal sgn_Stp4_IdxReqNum		: typ_1D_Nat(Num_sThread-1 downto 0);
+signal sgn_Stp4_IdxReq			: unsigned(Num_sThread-1 downto 0);
+signal sgn_Stp4_IdxAck			: unsigned(Num_sThread-1 downto 0);
+signal sgn_Stp4_IdxAckVal		: Natural;
+
+signal sgn_Stp5_IdxReqNum		: typ_1D_Nat(Num_sThread-1 downto 0);
+signal sgn_Stp5_IdxReq			: unsigned(Num_sThread-1 downto 0);
+signal sgn_Stp5_IdxAck			: unsigned(Num_sThread-1 downto 0);
+signal sgn_Stp5_IdxAckVal		: Natural;
+
+signal sgn_UnC_NumIdx			: Natural;
+signal sgn_IdxMngRst			: std_logic;
 --============================ function declare ============================--
 
 begin
@@ -296,7 +373,8 @@ port map(
 	mBucket_GetIdx		=> sgn_mBucket_GetIdx,--: out unsigned(gcst_W_Chunk-1 downto 0); -- size same as chunk data
 	mBucket_Cnt			=> sgn_mBucket_CntSum,--: in	Natural range 0 to mBucket_MaxCap;
 	
-	mBucket_IncEn		=> sgn_mBucket_IncEn,--: out std_logic;
+	IdxMngRst			=> sgn_IdxMngRst,--: out	std_logic;
+	LastRound			=> sgn_LastRound,--: out std_logic;
 	
 	sBucket_ChunkSel	=> sgn_sBucket_ChunkSel,--: out	Natural range 0 to gcst_N_Chunk-1;
 
@@ -311,10 +389,9 @@ port map(
 	sThread_St			=> sgn_sThread_St_org,--: out	std_logic;
 	
 	St					=> St,--(io): in	std_logic;
-	Ed					=> Ed,--(io): out	std_logic;
+	Ed					=> sgn_UnCompress_St,--: out	std_logic;
 	
 	clk					=> clk,--: in	std_logic;
-	sclr				=> sclr,--: in	std_logic;
 	aclr				=> aclr--: in	std_logic
 );
 
@@ -328,7 +405,7 @@ i0100: for i in 0 to Num_sThread-1 generate
 		
 		mBucket_Di			=> sgn_mBucket_Di(i),--: out unsigned(gcst_WD_Mem-1 downto 0);
 		mBucket_Inc			=> sgn_mBucket_Inc(i),--: out	std_logic;
-		mBucket_IncEn		=> sgn_mBucket_IncEn,--: in	std_logic;
+		LastRound			=> sgn_LastRound,--: in	std_logic;
 		
 		Mem_Addr			=> Mem_p2_A(i),--(io): out	unsigned(gcst_WA_Mem-1 downto 0);
 		Mem_Wr				=> Mem_p2_Wr(i),--(io): out	std_logic;
@@ -336,11 +413,20 @@ i0100: for i in 0 to Num_sThread-1 generate
 		
 		Param_r				=> sgn_r,--: in	Natural range 0 to gcst_Round-1 := 0;
 		
+		Stp4_IdxReqNum		=> sgn_Stp4_IdxReqNum(i),--: out	Natural;
+		Stp4_IdxReq			=> sgn_Stp4_IdxReq(i),--: out	std_logic;
+		Stp4_IdxAckVal		=> sgn_Stp4_IdxAckVal,--: in	Natural;
+		Stp4_IdxAck			=> sgn_Stp4_IdxAck(i),--: in	std_logic;
+		
+		Stp5_IdxReqNum		=> sgn_Stp5_IdxReqNum(i),--: out	Natural;
+		Stp5_IdxReq			=> sgn_Stp5_IdxReq(i),--: out	std_logic;
+		Stp5_IdxAckVal		=> sgn_Stp5_IdxAckVal,--: in	Natural;
+		Stp5_IdxAck			=> sgn_Stp5_IdxAck(i),--: in	std_logic;
+	
 		St					=> sgn_sThread_St(i),--: in	std_logic;
 		Ed					=> sgn_sThread_Ed(i),--: out	std_logic;
 		
 		clk					=> clk,--: in	std_logic;
-		sclr				=> sclr,--: in	std_logic;
 		aclr				=> aclr--: in	std_logic
 	);
 	
@@ -381,7 +467,6 @@ i0100: for i in 0 to Num_sThread-1 generate
 		S_MemChSel			=> sgn_mBucketRt_MemChSel,--: in	std_logic; -- '0': A->o; '1': B->o
 		
 		clk					=> clk,--: in	std_logic;
-		sclr				=> sclr,--: in	std_logic;
 		aclr				=> aclr--: in	std_logic
 	);
 end generate i0100;
@@ -452,6 +537,55 @@ port map(
 	
 	clk			=> clk,--: in	std_logic;
 	aclr		=> aclr--: in	std_logic
+);
+
+inst07: Equihash_GBP_UnCompress
+port map(
+	Num_Idx			=> sgn_UnC_NumIdx,--: in	Natural; -- must be hold outter
+	
+	Mem_A			=> Mem_p4_A,--(io): out	unsigned(gcst_WA_Mem-1 downto 0);
+	Mem_Rd			=> Mem_p4_Rd,--(io): out	std_logic;
+	Mem_Di			=> Mem_p4_Di(gcst_WD_Mem_Apdix-1 downto 0),--(io): in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_RdAck		=> Mem_p4_RdAck,--(io): in	std_logic;
+	
+	ResValid		=> ResValid,--(io): out	std_logic;
+	Res				=> Res,--(io): out	unsigned(gcst_WD_Idx-1 downto 0);
+	
+	St				=> sgn_UnCompress_St,--: in	std_logic;
+	Ed				=> Ed,--: out	std_logic;
+	
+	clk			=> clk,--: in	std_logic;
+	aclr		=> aclr--: in	std_logic
+);
+
+inst08: Equihash_GBP_IdxMng
+port map(
+	ReqNum	=> sgn_Stp4_IdxReqNum,--: in	Natural;
+	Req		=> sgn_Stp4_IdxReq,--: in	unsigned(Num_Ch-1 downto 0);
+	
+	AckVal	=> sgn_Stp4_IdxAckVal,--: out	Natural;
+	Ack		=> sgn_Stp4_IdxAck,--: out	unsigned(Num_Ch-1 downto 0);
+	
+	TotNum	=> open,--: out	Natural;
+	Rst		=> sgn_IdxMngRst,--: in	std_logic;
+	
+	clk		=> clk,--: in	std_logic;
+	aclr	=> aclr--: in	std_logic
+);
+
+inst09: Equihash_GBP_IdxMng
+port map(
+	ReqNum	=> sgn_Stp5_IdxReqNum,--: in	Natural;
+	Req		=> sgn_Stp5_IdxReq,--: in	unsigned(Num_Ch-1 downto 0);
+	
+	AckVal	=> sgn_Stp5_IdxAckVal,--: out	Natural;
+	Ack		=> sgn_Stp5_IdxAck,--: out	unsigned(Num_Ch-1 downto 0);
+	
+	TotNum	=> sgn_UnC_NumIdx,--: out	Natural;
+	Rst		=> sgn_IdxMngRst,--: in	std_logic;
+	
+	clk		=> clk,--: in	std_logic;
+	aclr	=> aclr--: in	std_logic
 );
 
 end rtl;

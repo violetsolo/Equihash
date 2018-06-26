@@ -47,7 +47,6 @@ port (
 	S_ChSel				: in	std_logic; -- '0': A->o; '1': B->o
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic := '0';
 	aclr				: in	std_logic
 );
 end Equihash_BucketMem_Mix;
@@ -86,14 +85,10 @@ begin
 	if(aclr='1')then
 		sgn_ChSel <= '0';
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			sgn_ChSel <= '0';
-		else
-			if(M_Config='1')then
-				sgn_ChSel <= M_ChSel;
-			elsif(S_Config='1')then
-				sgn_ChSel <= S_ChSel;
-			end if;
+		if(M_Config='1')then
+			sgn_ChSel <= M_ChSel;
+		elsif(S_Config='1')then
+			sgn_ChSel <= S_ChSel;
 		end if;
 	end if;
 end process;

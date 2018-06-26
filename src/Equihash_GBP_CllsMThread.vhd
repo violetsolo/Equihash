@@ -49,8 +49,9 @@ port (
 	mBucket_Get					: out	std_logic;
 	mBucket_GetIdx				: out unsigned(gcst_W_Chunk-1 downto 0); -- size same as chunk data
 	mBucket_Cnt					: in	Natural range 0 to mBucket_MaxCap;
-		
-	mBucket_IncEn				: out std_logic;
+	
+	LastRound					: out	std_logic;
+	IdxMngRst					: out	std_logic;
 	
 	sBucket_ChunkSel			: out	Natural range 0 to gcst_N_Chunk-1;
 
@@ -68,7 +69,6 @@ port (
 	Ed							: out	std_logic;
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic;
 	aclr				: in	std_logic
 );
 end Equihash_GBP_CllsMThread;
@@ -95,10 +95,12 @@ port (
 	mBucket_Init		: out	std_logic;
 	mBucket_Rdy			: in	std_logic;
 	mBucket_ChunkSel	: out	Natural range 0 to gcst_N_Chunk-1 := 0;
-	mBucket_IncEn		: out std_logic;
 	
 	Mem_AB_Buff_Rd		: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_AB_Buff_Wr		: out	unsigned(gcst_WA_Mem-1 downto 0);
+	
+	IdxMngRst			: out	std_logic;
+	LastRound			: out	std_logic;
 	
 	sBucket_ChunkSel	: out	Natural range 0 to gcst_N_Chunk-1 := 0;
 	
@@ -111,7 +113,6 @@ port (
 	nxt_Ed				: in	std_logic;
 	
 	clk					: in	std_logic;
-	sclr				: in	std_logic;
 	aclr				: in	std_logic
 );
 end component;
@@ -139,7 +140,6 @@ port (
 	nxt_St			: out	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end component;
@@ -163,7 +163,6 @@ port (
 	nxt_Ed			: in	std_logic;
 	
 	clk				: in	std_logic;
-	sclr			: in	std_logic;
 	aclr			: in	std_logic
 );
 end component;
@@ -242,7 +241,9 @@ port map(
 	mBucket_Init		=> mBucket_Init,--(IO): out	std_logic;
 	mBucket_Rdy			=> mBucket_Rdy,--(IO): in	std_logic;
 	mBucket_ChunkSel	=> mBucket_ChunkSel,--(IO): out	Natural range 0 to gcst_N_Chunk-1 := 0;
-	mBucket_IncEn		=> mBucket_IncEn,--(IO): out std_logic;
+	
+	IdxMngRst			=> IdxMngRst,--: out	std_logic;
+	LastRound			=> LastRound,--: out	std_logic;
 	
 	Mem_AB_Buff_Rd		=> sgn_AB_Buff,--: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_AB_Buff_Wr		=> mBucket_AB_Buff,--(IO): out	unsigned(gcst_WA_Mem-1 downto 0);
@@ -258,7 +259,6 @@ port map(
 	nxt_Ed				=> sgn_Ed_sThD_Stp1,--: in	std_logic;
 	
 	clk					=> clk,--: in	std_logic;
-	sclr				=> sclr,--: in	std_logic;
 	aclr				=> aclr--: in	std_logic
 );
 
@@ -278,7 +278,6 @@ port map(
 	nxt_St			=> sThread_St,--: out	std_logic;
 	
 	clk				=> clk,--: in	std_logic;
-	sclr			=> sclr,--: in	std_logic;
 	aclr			=> aclr--: in	std_logic
 );
 
@@ -297,7 +296,6 @@ port map(
 	nxt_Ed			=> sgn_Ed_Stp2_sThD,--: in	std_logic;
 	
 	clk				=> clk,--: in	std_logic;
-	sclr			=> sclr,--: in	std_logic;
 	aclr			=> aclr--: in	std_logic
 );
 
