@@ -37,8 +37,8 @@ port (
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_A_Rd		: out	unsigned(gcst_WA_Idx-1 downto 0);
-	Cache_A_Wr		: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_A_Wr			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_Wr			: out	std_logic;
 	
 	CmpRes				: in	std_logic;
@@ -56,8 +56,8 @@ end Equihash_GBP_UncmpStp4;
 
 architecture rtl of Equihash_GBP_UncmpStp4 is
 --============================ constant declare ============================--
-signal cst_IdxCntB_tbl		: typ_1D_Nat(gcst_Round-2 downto 0); -- 0~8
-signal cst_IdxCntR_tbl		: typ_1D_Nat(gcst_Round-2 downto 0);
+signal cst_IdxCntB_tbl		: typ_1D_Nat(gcst_Round-1 downto 0); -- 0~8
+signal cst_IdxCntR_tbl		: typ_1D_Nat(gcst_Round-1 downto 0);
 constant cst_RamRdDL		: Natural := gcst_IdxCache_RtlDL_Rd;
 -- sub next data read lag (ram delay(4) + read slave data(1) + compare(1) - read master data(1))
 constant cst_CmpResDL		: Natural := cst_RamRdDL + 1 + 1 - 1; 
@@ -67,12 +67,15 @@ constant cst_CmpResDL		: Natural := cst_RamRdDL + 1 + 1 - 1;
 --===================== user-defined component declare =====================--
 
 --============================= signal declare =============================--
-type typ_state is (S_Idle, S_preSet, S_mRd, S_sRd, S_RdW,
-					S_Cmp, S_Cross, S_Cross1, S_CrossW,
+type typ_state is (S_Idle, S_preSet, 
+					S_mRd, S_sRd, S_RdW,
+					S_mCpy, S_sCpy, 
+					S_mCross, S_sCross, 
+					S_TransW,
 					S_Fin);
 signal state			: typ_state;
 
-signal sgn_rCnt		: Natural range 0 to gcst_Round-2;
+signal sgn_rCnt		: Natural range 0 to gcst_Round-1; --0~8
 signal sgn_mCnt		: Natural;
 signal sgn_sCnt		: Natural;
 
@@ -87,9 +90,9 @@ signal sgn_SelRam	: std_logic;
 --============================ function declare ============================--
 
 begin
-i0100: for i in 0 to gcst_Round-2 generate
-	cst_IdxCntB_tbl(i) <= 2**i; -- initialize table 1~256
-	cst_IdxCntR_tbl(i) <= 2**(gcst_Round-2-i);
+i0100: for i in 0 to gcst_Round-1 generate -- 0~8
+	cst_IdxCntB_tbl(i) <= 2**i; -- initialize table 1 2 4 ... 256
+	cst_IdxCntR_tbl(i) <= 2**(gcst_Round-1-i); -- 256 128 64 ... 1
 end generate i0100;
 
 -- ram select order
@@ -136,51 +139,67 @@ begin
 				state <= S_mRd;
 			
 			when S_mRd => -- read first comp data
-				Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Idx);
+				Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_idxCache);
 				state <= S_sRd; 
 				
-			when S_sRd => -- read first comp data
-				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Idx);
+			when S_sRd => -- read second comp data
+				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_idxCache);
 				state <= S_RdW;
 			
 			when S_RdW =>
 				sgn_wCnt <= sgn_wCnt + 1;
 				if(sgn_wCnt = cst_CmpResDL-1)then -- wait for compare result generate
+					if(CmpRes = '0') then -- a < b hold data order
+						state <= S_mCpy;
+					else -- exchange data order
+						state <= S_mCross;
+					end if;
 					sgn_wCnt <= 0;
-					state <= S_Cmp;
 				end if;
-			
-			when S_Cmp =>
-				if(CmpRes = '1') then -- a < b hold data order
-					state <= S_Fin;
-					sgn_mCnt <= sgn_mCnt + sgn_IdxCntB; -- modify m counter
-					sgn_sCnt <= sgn_sCnt + sgn_IdxCntB; -- modify s counter
-				else -- exchange data order
-					state <= S_Cross;
-				end if;
-			
-			when S_Cross =>
+				
+			when S_mCpy =>
 				if(sgn_tCnt = sgn_IdxCntB)then -- last data in date seq
 					sgn_tCnt <= 0;
 					Cache_Wr <= '0';
-					state <= S_CrossW;
+					state <= S_TransW;
 				else
-					Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Idx); -- read first date
-					Cache_A_Wr <= to_unsigned(sgn_sCnt, gcst_WA_Idx); -- write first data
+					Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_idxCache); -- read first date
+					Cache_A_Wr <= to_unsigned(sgn_mCnt, gcst_WA_idxCache); -- write first data
 					Cache_Wr <= '1';
-					state <= S_Cross1;
+					state <= S_sCpy;
 				end if;
 			
-			when S_Cross1 =>
+			when S_sCpy =>
 				sgn_tCnt <= sgn_tCnt + 1; -- read data number increase
 				sgn_mCnt <= sgn_mCnt + 1; -- m counter increase
 				sgn_sCnt <= sgn_sCnt + 1; -- s counter increase
-				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Idx); -- read second data
-				Cache_A_Wr <= to_unsigned(sgn_mCnt, gcst_WA_Idx); -- write second data
+				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_idxCache); -- read second data
+				Cache_A_Wr <= to_unsigned(sgn_sCnt, gcst_WA_idxCache); -- write second data
 				Cache_Wr <= '1';
-				state <= S_Cross;
-					
-			when S_CrossW =>
+				state <= S_mCpy;
+			
+			when S_mCross =>
+				if(sgn_tCnt = sgn_IdxCntB)then -- last data in date seq
+					sgn_tCnt <= 0;
+					Cache_Wr <= '0';
+					state <= S_TransW;
+				else
+					Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_idxCache); -- read first date
+					Cache_A_Wr <= to_unsigned(sgn_sCnt, gcst_WA_idxCache); -- write first data
+					Cache_Wr <= '1';
+					state <= S_sCross;
+				end if;
+			
+			when S_sCross =>
+				sgn_tCnt <= sgn_tCnt + 1; -- read data number increase
+				sgn_mCnt <= sgn_mCnt + 1; -- m counter increase
+				sgn_sCnt <= sgn_sCnt + 1; -- s counter increase
+				Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_idxCache); -- read second data
+				Cache_A_Wr <= to_unsigned(sgn_mCnt, gcst_WA_idxCache); -- write second data
+				Cache_Wr <= '1';
+				state <= S_mCross;
+			
+			when S_TransW =>
 				sgn_wCnt <= sgn_wCnt + 1;
 				if(sgn_wCnt = cst_RamRdDL-1)then -- wait for last data write to ram
 					sgn_wCnt <= 0;
@@ -190,7 +209,7 @@ begin
 			when S_Fin =>
 				if(sgn_srCnt = sgn_IdxCntR - 1)then -- last round of current turn
 					sgn_srCnt <= 0;
-					if(sgn_rCnt = gcst_Round-2)then -- last round
+					if(sgn_rCnt = gcst_Round-1)then -- last round
 						sgn_SelRam <= '0'; -- set default
 						sgn_rCnt <= 0;
 						nxt_St <= '1'; -- trig next stage work

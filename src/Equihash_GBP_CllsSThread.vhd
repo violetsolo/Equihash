@@ -51,7 +51,7 @@ port (
 	Mem_Wr				: out	std_logic;
 	Mem_Do				: out	unsigned(gcst_WD_Mem_Apdix-1 downto 0);
 	
-	Param_r				: in	Natural range 0 to gcst_Round-1 := 0;
+	Param_r				: in	Natural range 0 to gcst_Round := 0;
 	
 	Stp4_IdxReqNum		: out	Natural;
 	Stp4_IdxReq		: out	std_logic;
@@ -76,10 +76,6 @@ architecture rtl of Equihash_GBP_CllsSThread is
 constant cst_Cache_Deepth		: Natural := sBucket_MaxCap * sBucket_Num;
 constant cst_Cache_ExpoDeepth	: Natural := Fnc_Int2Wd(cst_Cache_Deepth-1);
 
-constant cst_AB_IdxArr_M		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap*mBucket_Num*2,gcst_WA_Mem);
-constant cst_AB_IdxArr_Sect		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap,gcst_WA_Mem);
-constant cst_AB_sBucket_M		: unsigned(gcst_WA_Cache-1 downto 0) := to_unsigned(0,gcst_WA_Cache);
-constant cst_AB_sBucket_Sect	: unsigned(gcst_WA_Cache-1 downto 0) := to_unsigned(sBucket_MaxCap,gcst_WA_Cache);
 --======================== Altera component declare ========================--
 component altsyncram
 generic (
@@ -341,6 +337,7 @@ signal sgn_Stp4MuxData			: unsigned(gcst_WD_Cache_Data - 1 downto 0);
 signal sgn_Stp4MuxDataWr		: std_logic;
 
 signal sgn_Stp4CacheAddr		: unsigned(gcst_WA_Cache-1 downto 0);
+signal sgn_Param_r				: Natural range 0 to gcst_Round;
 
 -- stp5
 signal sgn_Stp5Latch			: std_logic;
@@ -356,6 +353,8 @@ signal sgn_Stp5MemWr			: std_logic;
 signal sgn_MemAj				: unsigned(gcst_WA_Mem-1 downto 0);
 signal sgn_MemAddr				: unsigned(gcst_WA_Mem-1 downto 0);
 signal sgn_MemWr				: std_logic;
+
+signal sgn_Cmp					: std_logic;
 
 -- delay
 constant cst_MemAddr_DL			: Natural := gcst_LpmRam_RtlDL_Wr + 
@@ -391,7 +390,6 @@ constant cst_Stp5Inc_DL			: Natural := gcst_LpmRam_RtlDL_Wr +
 											 gcst_AddrAuxCalc_RtlDL + 
 											 1 + 1 + 1; -- 7
 signal sgn_Stp5Inc_DL			: unsigned(0 downto 0);
-
 
 --============================ function declare ============================--
 
@@ -483,8 +481,8 @@ port map(
 
 inst06: Equihash_BucketDisp
 port map(
-	AB_Bucket	=> cst_AB_sBucket_Sect,--(const): in	unsigned(Width_Addr-1 downto 0); -- 0
-	AB_Buff		=> cst_AB_sBucket_M,--: in	unsigned(Width_Addr-1 downto 0);
+	AB_Bucket	=> gcst_sBucket_Sect,--(const): in	unsigned(Width_Addr-1 downto 0); -- 0
+	AB_Buff		=> gcst_AB_Cache,--: in	unsigned(Width_Addr-1 downto 0);
 
 	D_i			=> sBucket_Di,--(io): in	unsigned(gcst_WD_Mem-1 downto 0);
 	ChunkSel	=> sBucket_ChunkSel,--(io): in	Natural range 0 to gcst_N_Chunk-1;
@@ -555,16 +553,27 @@ begin
 end process;
 
 -- write Indx to Mem signals gen
+process(clk)
+begin
+	if(rising_edge(clk))then
+		if(sgn_Stp4CacheSel = '1')then
+			sgn_Param_r <= Param_r;
+		else
+			sgn_Param_r <= Param_r + 1;
+		end if;
+	end if;
+end process;
+
 inst10: Equihash_AddrAuxCalc
 generic map(
 	Width_A			=> gcst_WA_Mem--: Natural 32
 )
 port map(
-	AB_M			=> cst_AB_IdxArr_M,--(const): in	unsigned(Width_A-1 downto 0);
-	AB_S			=> cst_AB_IdxArr_Sect,--(const): in	unsigned(Width_A-1 downto 0);
+	AB_M			=> gcst_AB_MemIdx,--(const): in	unsigned(Width_A-1 downto 0);
+	AB_S			=> gcst_AB_MemIdx_Sect,--(const): in	unsigned(Width_A-1 downto 0);
 	
 	Idx				=> sgn_MemAj,--: in	unsigned(Width_A-1 downto 0);
-	Sect			=> to_unsigned(Param_r,gcst_WA_Mem),--: in	unsigned(Width_A-1 downto 0);
+	Sect			=> to_unsigned(sgn_Param_r,gcst_WA_Mem),--: in	unsigned(Width_A-1 downto 0);
 	
 	A_o				=> sgn_MemAddr,--: out	unsigned(Width_A-1 downto 0);
 	
@@ -579,8 +588,13 @@ begin
 		if(sgn_Stp4CacheSel = '1')then
 			Mem_Do <= unsigned(sgn_Cache_Apdix_Do);
 		else
-			Mem_Do <= sgn_Stp5CacheStp_DL & -- 8bit step value
-					  unsigned(sgn_xApdix(gcst_WD_Cache_Idx-1 downto 0)); -- 24bit latched value
+			if(sgn_Cmp='0')then
+				Mem_Do <= to_unsigned(0,gcst_WD_Cache_Stp) & -- 8bit step value
+						unsigned(sgn_xApdix(gcst_WD_Cache_Idx-1 downto 0)); -- 24bit latched value
+			else
+				Mem_Do <= sgn_Stp5CacheStp_DL & -- 8bit step value
+						unsigned(sgn_xApdix(gcst_WD_Cache_Idx-1 downto 0)); -- 24bit latched value
+			end if;
 		end if;
 	end if;
 end process;
@@ -603,8 +617,8 @@ generic map(
 	Width_A		=> gcst_WA_Cache--: Natural 32
 )
 port map(
-	AB_M			=> cst_AB_sBucket_M,--(const): in	unsigned(Width_A-1 downto 0);
-	AB_S			=> cst_AB_sBucket_Sect,--(const): in	unsigned(Width_A-1 downto 0);
+	AB_M			=> gcst_AB_Cache,--(const): in	unsigned(Width_A-1 downto 0);
+	AB_S			=> gcst_sBucket_Sect,--(const): in	unsigned(Width_A-1 downto 0);
 	
 	Idx				=> sgn_j,--: in	unsigned(Width_A-1 downto 0);
 	Sect			=> to_unsigned(sgn_p,gcst_WA_Cache),--: in	unsigned(Width_A-1 downto 0);
@@ -662,6 +676,14 @@ begin
 		sgn_xApdix_DL <= sgn_xApdix;
 	end if;
 end process;
+
+-- compare
+--sgn_Cmp <= '1' when sgn_mCollision(gcst_N_Chunk*gcst_W_Chunk-1 downto (gcst_N_Chunk-1)*gcst_W_Chunk-1) = 
+--					unsigned(sgn_Cache_Data_Do(gcst_N_Chunk*gcst_W_Chunk-1 downto (gcst_N_Chunk-1)*gcst_W_Chunk-1))
+--				else 
+--			'0';-- last 20bit
+sgn_Cmp <= '1' when sgn_mCollision = unsigned(sgn_Cache_Data_Do) else 
+			'0';-- last 20bit
 
 -- write mem signal gen (to mBucket)
 process(clk)

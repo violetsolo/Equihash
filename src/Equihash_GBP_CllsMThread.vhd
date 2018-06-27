@@ -59,7 +59,7 @@ port (
 	Mem_Rd						: out	std_logic;
 	Mem_RdAck					: in	std_logic;
 	
-	Param_r						: out	Natural range 0 to gcst_Round-1 := 0;
+	Param_r						: out	Natural range 0 to gcst_Round := 0;
 	
 	sThread_Sel					: out Natural range 0 to Num_sThread-1;
 	sThread_Ed					: in	unsigned(Num_sThread-1 downto 0);
@@ -75,16 +75,14 @@ end Equihash_GBP_CllsMThread;
 
 architecture rtl of Equihash_GBP_CllsMThread is
 --============================ constant declare ============================--
-constant cst_AB_mBucket_MA		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(0,gcst_WA_Mem);
-constant cst_AB_mBucket_MB		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap*mBucket_Num,gcst_WA_Mem);
-constant cst_AB_mBucket_Sect	: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap, gcst_WA_Mem);
+
 --======================== Altera component declare ========================--
 
 --===================== user-defined component declare =====================--
 component Equihash_GBP_CllsStp1
 generic(
-	AB_Buff_A		: unsigned(gcst_WA_Mem-1 downto 0) := cst_AB_mBucket_MA;
-	AB_Buff_B		: unsigned(gcst_WA_Mem-1 downto 0) := cst_AB_mBucket_MB
+	AB_Buff_A		: unsigned(gcst_WA_Mem-1 downto 0) := gcst_AB_MemA;
+	AB_Buff_B		: unsigned(gcst_WA_Mem-1 downto 0) := gcst_AB_MemB
 );
 port (
 	mBucketRt_Config	: out	std_logic;
@@ -108,7 +106,7 @@ port (
 	Ed					: out	std_logic;
 	Bsy					: out	std_logic;
 	
-	Param_r				: out	Natural range 0 to gcst_Round-1 := 0; -- hold during process
+	Param_r				: out	Natural range 0 to gcst_Round := 0; -- hold during process
 	nxt_St				: out	std_logic;
 	nxt_Ed				: in	std_logic;
 	
@@ -123,7 +121,7 @@ generic(
 	mBucket_Offset		: Natural := mBucket_Offset;
 	mBucket_Num			: Natural := mBucket_Num;
 	mBucket_MaxCap		: Natural := mBucket_MaxCap; -- 3*2**9
-	mBucket_CntSumDL	: Natural := 3
+	mBucket_CntSumDL	: Natural := mBucket_CntSumDL
 );
 port (
 	mBucket_Get		: out	std_logic;
@@ -207,7 +205,7 @@ signal sgn_Ed_sThD_Stp1			: std_logic;
 
 -- param
 -- from stp1
-signal sgn_r					: Natural range 0 to gcst_Round-1;
+signal sgn_r					: Natural range 0 to gcst_Round;
 -- from stp2
 signal sgn_AB_Buff				: unsigned(gcst_WA_Mem-1 downto 0);
 signal sgn_q					: unsigned(gcst_WA_Mem-1 downto 0);
@@ -309,7 +307,7 @@ generic map(
 )
 port map(
 	AB_M			=> sgn_AB_Buff,--: in	unsigned(Width_A-1 downto 0);
-	AB_S			=> cst_AB_mBucket_Sect,--(const): in	unsigned(Width_A-1 downto 0);
+	AB_S			=> gcst_mBucket_Sect,--(const): in	unsigned(Width_A-1 downto 0);
 	
 	Idx				=> sgn_i,--: in	unsigned(Width_A-1 downto 0);
 	Sect			=> sgn_q,--: in	unsigned(Width_A-1 downto 0);

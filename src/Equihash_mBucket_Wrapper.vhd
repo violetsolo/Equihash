@@ -60,14 +60,14 @@ port (
 	Mem_Wr				: out	std_logic;
 	
 	M_Config			: in	std_logic; -- high priority
-	M_IncSet			: in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
-	M_GetSet			: in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
-	M_MemChSel			: in	std_logic; -- '0': A->o; '1': B->o
+	M_IncSet			: in	std_logic; -- '0': A->Am, B->Bm; '1': A->Bm, B->Am
+	M_GetSet			: in	std_logic; -- '0': Am->A, Bm->B; '1': Am->B, Bm->A
+	M_MemChSel			: in	std_logic; -- '0': Am->o; '1': Bm->o
 	
 	S_Config			: in	std_logic;
-	S_IncSet			: in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
-	S_GetSet			: in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A
-	S_MemChSel			: in	std_logic; -- '0': A->o; '1': B->o
+	S_IncSet			: in	std_logic; -- '0': A->Am, B->Bm; '1': A->Bm, B->Am
+	S_GetSet			: in	std_logic; -- '0': Am->A, Bm->B; '1': Am->B, Bm->A
+	S_MemChSel			: in	std_logic; -- '0': Am->o; '1': Bm->o
 	
 	clk					: in	std_logic;
 	aclr				: in	std_logic
@@ -307,15 +307,15 @@ port map(
 	ChAO_Cnt_o			=> sgn_ChAo_Cnt_o,--: in	Natural range 0 to Max_Counter;
 	ChAO_Rdy			=> sgn_ChAo_Rdy,--: in	std_logic;
 	
-	ChBO_AB_Buff		=> sgn_ChBO_AB_Buff,--: out	unsigned(gcst_WA_Mem-1 downto 0);
-	ChBO_Get			=> sgn_ChBO_Get,--: out	std_logic;
-	ChBO_GetIdx			=> sgn_ChBO_GetIdx,--: out	unsigned(gcst_W_Chunk-1 downto 0);
-	ChBO_D_i			=> sgn_ChBO_D_i,--: out	unsigned(gcst_WD_Mem-1 downto 0);
-	ChBO_ChunkSel		=> sgn_ChBO_ChunkSel,--: out	Natural range 0 to gcst_N_Chunk-1;
-	ChBO_Inc			=> sgn_ChBO_Inc,--: out	std_logic;
-	ChBO_Init			=> sgn_ChBO_Init,--: out	std_logic;
-	ChBO_Cnt_o			=> sgn_ChBO_Cnt_o,--: in	Natural range 0 to Max_Counter;
-	ChBO_Rdy			=> sgn_ChBO_Rdy,--: in	std_logic;
+	ChBO_AB_Buff		=> sgn_ChBo_AB_Buff,--: out	unsigned(gcst_WA_Mem-1 downto 0);
+	ChBO_Get			=> sgn_ChBo_Get,--: out	std_logic;
+	ChBO_GetIdx			=> sgn_ChBo_GetIdx,--: out	unsigned(gcst_W_Chunk-1 downto 0);
+	ChBO_D_i			=> sgn_ChBo_D_i,--: out	unsigned(gcst_WD_Mem-1 downto 0);
+	ChBO_ChunkSel		=> sgn_ChBo_ChunkSel,--: out	Natural range 0 to gcst_N_Chunk-1;
+	ChBO_Inc			=> sgn_ChBo_Inc,--: out	std_logic;
+	ChBO_Init			=> sgn_ChBo_Init,--: out	std_logic;
+	ChBO_Cnt_o			=> sgn_ChBo_Cnt_o,--: in	Natural range 0 to Max_Counter;
+	ChBO_Rdy			=> sgn_ChBo_Rdy,--: in	std_logic;
 	
 	M_Config			=> M_Config,--(io): in	std_logic; -- high priority
 	M_IncSet			=> M_IncSet,--(io): in	std_logic; -- '0': A->A, B->B; '1': A->B, B->A

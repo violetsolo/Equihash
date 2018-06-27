@@ -30,8 +30,8 @@ entity Equihash_GBP_UncmpStp1 is
 port (
 	Num_Idx				: in	Natural; -- must be hold outter
 	
-	Cache_A_Wr			: out	unsigned(gcst_WA_Idx-1 downto 0);
-	Cache_Di			: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Cache_A_Wr			: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_Di			: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	Cache_Wr			: out	std_logic;
 	
 	Cache_SelCh			: out	std_logic;
@@ -61,7 +61,7 @@ architecture rtl of Equihash_GBP_UncmpStp1 is
 type typ_state is (S_Idle, S_Wr, S_St, S_Wait);
 signal state			: typ_state;
 
-signal sgn_nCnt	: Natural;
+signal sgn_nCnt			: Natural;
 --============================ function declare ============================--
 
 begin
@@ -94,7 +94,7 @@ begin
 			when S_Wr =>
 				Cache_SelCh <= '1';
 				Cache_Wr <= '1'; -- write first idx address into cache
-				Cache_Di <= to_unsigned(sgn_nCnt,gcst_WD_Idx);
+				Cache_Di <= to_unsigned(sgn_nCnt,gcst_WD_idxCache);
 				state <= S_St;
 			
 			when S_St =>

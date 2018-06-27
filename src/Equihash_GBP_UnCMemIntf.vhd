@@ -36,13 +36,15 @@ generic(
 	Device_Family	: string := "Cyclone V"
 );
 port (
-	Mem_Di		: in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_Di		: in	unsigned(gcst_WD_idxCache-1 downto 0);
 	Mem_RdAck	: in	std_logic;
 	
-	Cache_Di	: out	unsigned(gcst_WD_Idx-1 downto 0);
-	Cache_A_Wr	: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_Di	: out	unsigned(gcst_WD_idxCache-1 downto 0);
+	Cache_A_Wr	: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_Wr	: out	std_logic;
 	Cache_A_Rst	: in	std_logic;
+	
+	Valid		: out	std_logic;
 	
 	clk			: in	std_logic;
 	aclr		: in	std_logic
@@ -58,11 +60,11 @@ generic (
 	ram_block_type				: string := "AUTO";
 	add_ram_output_register		: STRING := "ON";
 	intended_device_family		: STRING := Device_Family;--"Cyclone V";
-	lpm_numwords				: NATURAL := gcst_Size_Idx; -- 512
+	lpm_numwords				: NATURAL := gcst_Size_idxCache; -- 512
 	lpm_showahead				: STRING := "OFF";
 	lpm_type					: STRING := "scfifo";
-	lpm_width					: NATURAL := gcst_WD_Idx;
-	lpm_widthu					: NATURAL := gcst_WA_Idx; -- 9
+	lpm_width					: NATURAL := gcst_WD_idxCache;
+	lpm_widthu					: NATURAL := gcst_WA_idxCache; -- 9
 	overflow_checking			: STRING := "ON";
 	underflow_checking			: STRING := "ON";
 	use_eab						: STRING := "ON"
@@ -88,11 +90,14 @@ signal state			: typ_state;
 
 signal sgn_fifo_empty	: std_logic;
 signal sgn_fifo_rd		: std_logic;
-signal sgn_fifo_Do		: STD_LOGIC_VECTOR(gcst_WD_Idx-1 downto 0);
+signal sgn_fifo_Do		: STD_LOGIC_VECTOR(gcst_WD_idxCache-1 downto 0);
 signal sgn_fifo_wr		: std_logic;
-signal sgn_fifo_Di		: STD_LOGIC_VECTOR(gcst_WD_Idx-1 downto 0);
+signal sgn_fifo_Di		: STD_LOGIC_VECTOR(gcst_WD_idxCache-1 downto 0);
 
-signal sgn_cnt		: Natural range 0 to gcst_Size_Idx;
+signal sgn_cnt		: Natural range 0 to gcst_Size_idxCache;
+
+signal sgn_Idx		: unsigned(gcst_WD_Cache_Idx-1 downto 0); -- 24
+signal sgn_Stp		: unsigned(gcst_WD_Cache_Stp-1 downto 0); -- 8
 --============================ function declare ============================--
 
 begin
@@ -114,6 +119,9 @@ port map(
 	aclr				=> aclr--: IN STD_LOGIC 
 );
 
+sgn_Idx <= unsigned(sgn_fifo_Do(gcst_WD_Cache_Idx-1 downto 0));
+sgn_Stp <= unsigned(sgn_fifo_Do(gcst_WD_idxCache-1 downto gcst_WD_Cache_Idx));
+
 process(clk,aclr)
 begin
 	if(aclr='1')then
@@ -121,6 +129,7 @@ begin
 		Cache_Wr <= '0';
 		sgn_fifo_rd <= '0';
 		sgn_cnt <= 0;
+		Valid <= '0';
 	elsif(rising_edge(clk))then
 		case state is
 			when S_Idle =>
@@ -131,24 +140,27 @@ begin
 				end if;
 				if(Cache_A_Rst='1')then
 					sgn_cnt <= 0;
+					Valid <= '0';
 				end if;
-			
+				
 			when S_Wr1 =>
 				sgn_fifo_rd <= '0';
+				if(sgn_Stp = 0)then -- high 8bit equal to 0 allude to invalid
+					Valid <= '1';
+				end if;
 				Cache_Di <= to_unsigned(0,gcst_WD_Cache_Stp) & 
-							unsigned(sgn_fifo_Do(gcst_WD_Cache_Idx-1 downto 0));
+							sgn_Idx;-- low 24bit
 				Cache_Wr <= '1';
-				Cache_A_Wr <= to_unsigned(sgn_cnt, gcst_WA_Idx);
+				Cache_A_Wr <= to_unsigned(sgn_cnt, gcst_WA_idxCache);
 				sgn_cnt <= sgn_cnt + 1;
 				state <= S_Wr2;
 			
 			when S_Wr2 =>
-				Cache_Di <= (to_unsigned(0,gcst_WD_Cache_Stp) & 
-							 unsigned(sgn_fifo_Do(gcst_WD_Cache_Idx-1 downto 0))) +
-							(to_unsigned(0,gcst_WD_Cache_Idx) & 
-							 unsigned(sgn_fifo_Do(gcst_WD_Idx-1 downto gcst_WD_Cache_Idx)));
+				-- low 24bit + high 8bit
+				Cache_Di <= (to_unsigned(0,gcst_WD_Cache_Stp) & sgn_Idx) +
+							(to_unsigned(0,gcst_WD_Cache_Idx) & sgn_Stp);
 				Cache_Wr <= '1';
-				Cache_A_Wr <= to_unsigned(sgn_cnt, gcst_WA_Idx);
+				Cache_A_Wr <= to_unsigned(sgn_cnt, gcst_WA_idxCache);
 				sgn_cnt <= sgn_cnt + 1;
 				state <= S_Idle;
 			

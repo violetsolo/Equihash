@@ -53,7 +53,7 @@ port (
 	Ed					: out	std_logic;
 	Bsy					: out	std_logic;
 	
-	Param_r				: out	Natural range 0 to gcst_Round-1 := 0; -- hold during process
+	Param_r				: out	Natural range 0 to gcst_Round := 0; -- hold during process
 	nxt_St				: out	std_logic;
 	nxt_Ed				: in	std_logic;
 	
@@ -88,8 +88,8 @@ begin
 	if(aclr='1')then
 		state <= S_Idle;
 		mBucketRt_Config <= '0';
-		sgn_mBucketRt_IncSet	<= '0'; -- Inc channel is B (this module connect to channel B)
-		mBucketRt_GetSet	<= '1'; -- Get channel is A (this module connect to channel B)
+		sgn_mBucketRt_IncSet <= '0'; -- Inc channel is B (this module connect to channel B)
+		mBucketRt_GetSet <= '1'; -- Get channel is A (this module connect to channel B)
 		mBucket_Init <= '0';
 		LastRound <= '0';
 		IdxMngRst <= '0';
@@ -113,7 +113,7 @@ begin
 			when S_Config =>
 				mBucketRt_Config	<= '1'; -- config BucketRt
 				IdxMngRst <= '1';
-				if(sgn_Round = gcst_Round-1)then -- last round
+				if(sgn_Round = gcst_Round-1)then -- last round 0~8
 					mBucket_ChunkSel <= 0; -- no care
 					LastRound <= '0'; -- no mbucket inc 
 				else

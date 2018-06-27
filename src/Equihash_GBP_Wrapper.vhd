@@ -29,14 +29,6 @@ use work.Equihash_pkg.all;
 entity Equihash_GBP_Wrapper is
 generic(
 	Device_Family		: string := "Cyclone V";
-	mBucket_Width		: Natural := 12;
-	mBucket_Offset		: Natural := 0;
-	mBucket_Num			: Natural := 2**12;
-	mBucket_MaxCap		: Natural := 3*2**9;--2**11; -- 3*2**9
-	sBucket_Width		: Natural := 8;
-	sBucket_Offset		: Natural := 12;
-	sBucket_Num			: Natural := 2**8;
-	sBucket_MaxCap		: Natural := 17;--2**5 -- 17
 	Num_sThread			: Natural := 1
 );
 port (
@@ -52,8 +44,8 @@ port (
 	Bucket_AB_Buff		: in	unsigned(gcst_WA_Mem-1 downto 0); -- fixed 0
 	Bucket_ChunkSel		: in	Natural range 0 to gcst_N_Chunk-1; -- fixed 0
 	-- Bucket data input and counter increase
-	Bucket_Di			: in	unsigned(gcst_WD_Mem-1 downto 0);
-	Bucket_Inc			: in	std_logic;
+	Bucket_Di			: in	typ_1D_Mem_D(Num_sThread-1 downto 0);
+	Bucket_Inc			: in	unsigned(Num_sThread-1 downto 0);
 	-- read data from buffer (memory)
 	Mem_p1_A			: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_p1_Rd			: out	std_logic;
@@ -74,7 +66,7 @@ port (
 	Mem_p4_RdAck		: in	std_logic;
 	-- result
 	ResValid			: out	std_logic;
-	Res					: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Res					: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	-- GBP process strat
 	St					: in	std_logic;
 	Ed					: out	std_logic;
@@ -87,18 +79,16 @@ end Equihash_GBP_Wrapper;
 architecture rtl of Equihash_GBP_Wrapper is
 --============================ constant declare ============================--
 constant cst_mBucket_CntSumDL	: Natural := Fnc_Int2Wd(Num_sThread-1);
-constant cst_AB_IdxArr_M		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap*mBucket_Num*2,gcst_WA_Mem);
-constant cst_AB_IdxArr_Sect		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(mBucket_MaxCap,gcst_WA_Mem);
 
 --======================== Altera component declare ========================--
 
 --===================== user-defined component declare =====================--
 component Equihash_GBP_CllsMThread
 generic(
-	mBucket_Width		: Natural := mBucket_Width;
-	mBucket_Offset		: Natural := mBucket_Offset;
-	mBucket_Num			: Natural := mBucket_Num;
-	mBucket_MaxCap		: Natural := mBucket_MaxCap;--2**11; -- 3*2**9
+	mBucket_Width		: Natural := gcst_mBucket_Width;
+	mBucket_Offset		: Natural := gcst_mBucket_Offset;
+	mBucket_Num			: Natural := gcst_mBucket_Num;
+	mBucket_MaxCap		: Natural := gcst_mBucket_MaxCap;--2**11; -- 3*2**9
 	Num_sThread			: Natural := Num_sThread;
 	mBucket_CntSumDL	: Natural := cst_mBucket_CntSumDL -- log2(Num_sThread)
 );
@@ -126,7 +116,7 @@ port (
 	Mem_Rd						: out	std_logic;
 	Mem_RdAck					: in	std_logic;
 	
-	Param_r						: out	Natural range 0 to gcst_Round-1 := 0;
+	Param_r						: out	Natural range 0 to gcst_Round := 0;
 	
 	sThread_Sel					: out Natural range 0 to Num_sThread-1;
 	sThread_Ed					: in	unsigned(Num_sThread-1 downto 0);
@@ -143,12 +133,12 @@ end component;
 component Equihash_GBP_CllsSThread
 generic(
 	Device_Family		: string := Device_Family;
-	mBucket_Num			: Natural := mBucket_Num;
-	mBucket_MaxCap		: Natural := mBucket_MaxCap; -- 3*2**9
-	sBucket_Width		: Natural := sBucket_Width;
-	sBucket_Offset		: Natural := sBucket_Offset;
-	sBucket_Num			: Natural := sBucket_Num;
-	sBucket_MaxCap		: Natural := sBucket_MaxCap--2**5 -- 17
+	mBucket_Num			: Natural := gcst_mBucket_Num;
+	mBucket_MaxCap		: Natural := gcst_mBucket_MaxCap; -- 3*2**9
+	sBucket_Width		: Natural := gcst_sBucket_Width;
+	sBucket_Offset		: Natural := gcst_sBucket_Offset;
+	sBucket_Num			: Natural := gcst_sBucket_Num;
+	sBucket_MaxCap		: Natural := gcst_sBucket_MaxCap--2**5 -- 17
 );
 port (
 	sBucket_ChunkSel	: in	Natural range 0 to gcst_N_Chunk-1;
@@ -156,7 +146,7 @@ port (
 	sBucket_Di			: in	unsigned(gcst_WD_Mem-1 downto 0);
 	sBucket_Inc			: in	std_logic;
 	
-	mBucket_Di			: out unsigned(gcst_WD_Mem-1 downto 0);
+	mBucket_Di			: out	unsigned(gcst_WD_Mem-1 downto 0);
 	mBucket_Inc			: out	std_logic;
 	
 	LastRound			: in	std_logic;
@@ -165,7 +155,7 @@ port (
 	Mem_Wr				: out	std_logic;
 	Mem_Do				: out	unsigned(gcst_WD_Mem_Apdix-1 downto 0);
 	
-	Param_r				: in	Natural range 0 to gcst_Round-1 := 0;
+	Param_r				: in	Natural range 0 to gcst_Round := 0;
 	
 	Stp4_IdxReqNum		: out	Natural;
 	Stp4_IdxReq			: out	std_logic;
@@ -188,10 +178,10 @@ end component;
 component Equihash_mBucket_Wrapper
 generic(
 	Device_Family	: string := Device_Family;
-	mBucket_Width	: Natural := mBucket_Width;
-	mBucket_Offset	: Natural := mBucket_Offset;
-	mBucket_Num		: Natural := mBucket_Num;
-	mBucket_MaxCap	: Natural := mBucket_MaxCap -- 3*2**9
+	mBucket_Width	: Natural := gcst_mBucket_Width;
+	mBucket_Offset	: Natural := gcst_mBucket_Offset;
+	mBucket_Num		: Natural := gcst_mBucket_Num;
+	mBucket_MaxCap	: Natural := gcst_mBucket_MaxCap -- 3*2**9
 );
 port (
 	ChAi_AB_Buff		: in	unsigned(gcst_WA_Mem-1 downto 0);
@@ -262,20 +252,18 @@ end component;
 
 component Equihash_GBP_UnCompress
 generic(
-	Device_Family		: string := Device_Family;
-	AB_IdxArr_M			: Natural := to_integer(cst_AB_IdxArr_M);
-	AB_IdxArr_Sect		: Natural := to_integer(cst_AB_IdxArr_Sect)
+	Device_Family		: string := Device_Family
 );
 port (
 	Num_Idx				: in	Natural; -- must be hold outter
 	
 	Mem_A				: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_Rd				: out	std_logic;
-	Mem_Di				: in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_Di				: in	unsigned(gcst_WD_idxCache-1 downto 0);
 	Mem_RdAck			: in	std_logic;
 	
 	ResValid			: out	std_logic;
-	Res					: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Res					: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	
 	St					: in	std_logic;
 	Ed					: out	std_logic;
@@ -304,7 +292,7 @@ port (
 );
 end component;
 --============================= signal declare =============================--
-signal sgn_r					: Natural range 0 to gcst_Round-1;
+signal sgn_r					: Natural range 0 to gcst_Round;
 
 signal sgn_sThread_Ed			: unsigned(Num_sThread-1 downto 0);
 
@@ -436,8 +424,8 @@ i0100: for i in 0 to Num_sThread-1 generate
 		ChAi_Rdy			=> sgn_Bucket_Rdy(i),--(io): out	std_logic;
 		ChAi_AB_Buff		=> Bucket_AB_Buff,--(io): in	unsigned(gcst_WA_Mem-1 downto 0);
 		ChAi_ChunkSel		=> Bucket_ChunkSel,--fixed: in	Natural range 0 to gcst_N_Chunk-1;
-		ChAi_D_i			=> Bucket_Di,--(io): in	unsigned(gcst_WD_Mem-1 downto 0);
-		ChAi_Inc			=> Bucket_Inc,--(io): in	std_logic;
+		ChAi_D_i			=> Bucket_Di(i),--(io): in	unsigned(gcst_WD_Mem-1 downto 0);
+		ChAi_Inc			=> Bucket_Inc(i),--(io): in	std_logic;
 		ChAi_Get			=> '0',--(io): in	std_logic;
 		ChAi_GetIdx			=> to_unsigned(0,gcst_W_Chunk),--(io): in	unsigned(gcst_W_Chunk-1 downto 0);
 		ChAi_Cnt_o			=> open,--(io): out	Natural range 0 to mBucket_MaxCap;

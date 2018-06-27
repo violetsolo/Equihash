@@ -31,7 +31,7 @@ port (
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	rValid				: out	std_logic;
 	
 	St					: in	std_logic;
@@ -85,14 +85,14 @@ begin
 				end if;
 			
 			when S_Rd =>
-				if(sgn_Cnt = 2**(gcst_Round-1))then
+				if(sgn_Cnt = gcst_Size_idxCache)then -- 512
 					sgn_Cnt <= 0;
 					rValid <= '0';
 					Ed <= '1';
 					state <= S_Idle;
 				else
 					sgn_Cnt <= sgn_Cnt + 1;
-					Cache_A_Rd <= to_unsigned(sgn_Cnt, gcst_WA_Idx);
+					Cache_A_Rd <= to_unsigned(sgn_Cnt, gcst_WA_idxCache);
 					rValid <= '1';
 				end if;
 			

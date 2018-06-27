@@ -28,7 +28,7 @@ use work.Equihash_pkg.all;
 
 entity Equihash_GBP_UncmpStp3 is
 port (
-	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
@@ -55,8 +55,8 @@ architecture rtl of Equihash_GBP_UncmpStp3 is
 --============================ constant declare ============================--
 constant cst_RamRdDL		: Natural := gcst_IdxCache_RtlDL_Rd;
 constant cst_CmpResDL		: Natural := cst_RamRdDL + 1; -- 1 cpmpare
-constant cst_RoundMax		: Natural := gcst_Size_Idx-1; -- 511
-constant cst_IdxCntMax		: Natural := gcst_Size_Idx; -- 512
+constant cst_RoundMax		: Natural := gcst_Size_idxCache-1; -- 511
+constant cst_IdxCntMax		: Natural := gcst_Size_idxCache; -- 512
 
 --======================== Altera component declare ========================--
 
@@ -108,7 +108,7 @@ begin
 				end if;
 			
 			when S_mRd => -- get first data
-				Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_Idx);
+				Cache_A_Rd <= to_unsigned(sgn_mCnt, gcst_WA_idxCache);
 				mVal_L <= '1'; -- should delay outside
 				CmpRes_Rst <= '1'; -- reset compare result
 				state <= S_mRdW;
@@ -129,7 +129,7 @@ begin
 					state <= S_sRdW;
 				else
 					sgn_sCnt <= sgn_sCnt + 1;
-					Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_Idx);
+					Cache_A_Rd <= to_unsigned(sgn_sCnt, gcst_WA_idxCache);
 					CmpRes_L <= '1'; -- record cmp result
 				end if;
 			

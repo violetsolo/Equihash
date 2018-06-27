@@ -28,20 +28,18 @@ use work.Equihash_pkg.all;
 
 entity Equihash_GBP_UnCompress is
 generic(
-	Device_Family		: string := "Cyclone V";
-	AB_IdxArr_M			: Natural := 1000;
-	AB_IdxArr_Sect		: Natural := 10
+	Device_Family		: string := "Cyclone V"
 );
 port (
 	Num_Idx				: in	Natural; -- must be hold outter
 	
 	Mem_A				: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_Rd				: out	std_logic;
-	Mem_Di				: in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_Di				: in	unsigned(gcst_WD_idxCache-1 downto 0);
 	Mem_RdAck			: in	std_logic;
 	
 	ResValid			: out	std_logic;
-	Res					: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Res					: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	
 	St					: in	std_logic;
 	Ed					: out	std_logic;
@@ -53,7 +51,7 @@ end Equihash_GBP_UnCompress;
 
 architecture rtl of Equihash_GBP_UnCompress is
 --============================ constant declare ============================--
-constant cst_Num_CacheCh		: Natural := 5;
+constant cst_Num_Ch		: Natural := 5;
 
 constant cst_MemRd_DL			: Natural := gcst_IdxCache_RtlDL_Rd + gcst_AddrAuxCalc_RtlDL;
 constant cst_Stp3_mValL_DL		: Natural := gcst_IdxCache_RtlDL_Rd;
@@ -67,8 +65,8 @@ component Equihash_GBP_UncmpStp1
 port (
 	Num_Idx				: in	Natural; -- must be hold outter
 	
-	Cache_A_Wr			: out	unsigned(gcst_WA_Idx-1 downto 0);
-	Cache_Di			: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Cache_A_Wr			: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_Di			: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	Cache_Wr			: out	std_logic;
 	
 	Cache_SelCh			: out	std_logic;
@@ -89,7 +87,7 @@ end component;
 
 component Equihash_GBP_UncmpStp2
 port (
-	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_AWrGen_Rst	: out	std_logic;
 	
 	Cache_SelCh			: out	std_logic;
@@ -99,9 +97,13 @@ port (
 	Mem_Rd				: out	std_logic;
 	Mem_RdBsy			: in	std_logic;
 	
+	Valid				: in	std_logic;
+	
 	St					: in	std_logic;
 	Ed					: out	std_logic;
 	Bsy					: out	std_logic;
+	
+	pQit				: out	std_logic;
 	
 	nxt_St				: out	std_logic;
 	
@@ -112,7 +114,7 @@ end component;
 
 component Equihash_GBP_UncmpStp3
 port (
-	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
@@ -140,8 +142,8 @@ port (
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
-	Cache_A_Wr			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_A_Wr			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_Wr			: out	std_logic;
 	
 	CmpRes				: in	std_logic;
@@ -162,7 +164,7 @@ port (
 	Cache_SelCh			: out	std_logic;
 	Cache_SelRam		: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_A_Rd			: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	rValid				: out	std_logic;
 	
 	St					: in	std_logic;
@@ -177,14 +179,14 @@ end component;
 component Equihash_GBP_UnCRam
 generic(
 	Device_Family	: string := Device_Family;
-	Num_Ch			: Natural := cst_Num_CacheCh -- 5
+	Num_Ch			: Natural := cst_Num_Ch -- 5
 );
 port (
 	Wr			: in	unsigned(Num_Ch-1 downto 0);
 	A_Wr		: in	typ_1D_Idx_A(Num_Ch-1 downto 0);
 	Di			: in	typ_1D_Idx_D(Num_Ch-1 downto 0); -- index 4word
 	A_Rd		: in	typ_1D_Idx_A(Num_Ch-1 downto 0);
-	Do			: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Do			: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	
 	SelCh		: in	unsigned(Num_Ch-1 downto 0);
 	SelRam		: in	unsigned(Num_Ch-1 downto 0); -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
@@ -199,13 +201,15 @@ generic(
 	Device_Family	: string := Device_Family
 );
 port (
-	Mem_Di		: in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_Di		: in	unsigned(gcst_WD_idxCache-1 downto 0);
 	Mem_RdAck	: in	std_logic;
 	
-	Cache_Di	: out	unsigned(gcst_WD_Idx-1 downto 0);
-	Cache_A_Wr	: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_Di	: out	unsigned(gcst_WD_idxCache-1 downto 0);
+	Cache_A_Wr	: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_Wr	: out	std_logic;
 	Cache_A_Rst	: in	std_logic;
+	
+	Valid		: out	std_logic;
 	
 	clk			: in	std_logic;
 	aclr		: in	std_logic
@@ -243,14 +247,14 @@ port (
 );
 end component;
 --============================= signal declare =============================--
-signal sgn_Cache_Wr			: unsigned(cst_Num_CacheCh-1 downto 0);
-signal sgn_Cache_A_Wr		: typ_1D_Idx_A(cst_Num_CacheCh-1 downto 0);
-signal sgn_Cache_Di			: typ_1D_Idx_D(cst_Num_CacheCh-1 downto 0); -- index 4word
-signal sgn_Cache_A_Rd		: typ_1D_Idx_A(cst_Num_CacheCh-1 downto 0);
-signal sgn_Cache_Do			: unsigned(gcst_WD_Idx-1 downto 0);
+signal sgn_Cache_Wr			: unsigned(cst_Num_Ch-1 downto 0);
+signal sgn_Cache_A_Wr		: typ_1D_Idx_A(cst_Num_Ch-1 downto 0);
+signal sgn_Cache_Di			: typ_1D_Idx_D(cst_Num_Ch-1 downto 0); -- index 4word
+signal sgn_Cache_A_Rd		: typ_1D_Idx_A(cst_Num_Ch-1 downto 0);
+signal sgn_Cache_Do			: unsigned(gcst_WD_idxCache-1 downto 0);
 
-signal sgn_Cache_SelCh		: unsigned(cst_Num_CacheCh-1 downto 0);
-signal sgn_Cache_SelRam		: unsigned(cst_Num_CacheCh-1 downto 0); -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
+signal sgn_Cache_SelCh		: unsigned(cst_Num_Ch-1 downto 0);
+signal sgn_Cache_SelRam		: unsigned(cst_Num_Ch-1 downto 0); -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 
 signal sgn_St_Stp1_Stp2		: std_logic;
 signal sgn_St_Stp2_Stp3		: std_logic;
@@ -268,8 +272,11 @@ signal sgn_MemAddr			: unsigned(gcst_WA_Mem-1 downto 0);
 signal sgn_MemRd			: std_logic;
 signal sgn_MemRd_DL			: unsigned(0 downto 0);
 
-signal sgn_MemRdCnt		: Natural range 0 to gcst_Size_Idx;
+signal sgn_MemRdCnt		: Natural range 0 to gcst_Size_idxCache;
 signal sgn_MemRdBsy		: std_logic;
+
+signal sgn_Stp2_Valid		: std_logic;
+signal sgn_Stp2_Abort		: std_logic;
 
 signal sgn_Stp3_mValL		: std_logic;
 signal sgn_Stp3_mValL_DL	: unsigned(0 downto 0);
@@ -277,6 +284,7 @@ signal sgn_Stp3_CmpL		: std_logic;
 signal sgn_Stp3_CmpL_DL		: unsigned(0 downto 0);
 signal sgn_Stp3_CmpRst		: std_logic;
 signal sgn_Stp3_CmpRes		: std_logic;
+signal sgn_Stp3_Abort		: std_logic;
 
 signal sgn_Stp3_mVal		: Natural;
 signal sgn_Stp3_sVal		: Natural;
@@ -296,8 +304,8 @@ inst01: Equihash_GBP_UncmpStp1
 port map(
 	Num_Idx				=> Num_Idx,--(io): in	Natural; -- must be hold outter
 	
-	Cache_A_Wr			=> sgn_Cache_A_Wr(0),--: out	unsigned(gcst_WA_Idx-1 downto 0);
-	Cache_Di			=> sgn_Cache_Di(0),--: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Cache_A_Wr			=> sgn_Cache_A_Wr(0),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_Di			=> sgn_Cache_Di(0),--: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	Cache_Wr			=> sgn_Cache_Wr(0),--: out	std_logic;
 	
 	Cache_SelCh			=> sgn_Cache_SelCh(0),--: out	std_logic;
@@ -314,12 +322,13 @@ port map(
 	clk					=> clk,--: in	std_logic;
 	aclr				=> aclr--: in	std_logic
 );
+sgn_Ed_Stp3_Stp1 <= sgn_Stp2_Abort or sgn_Stp3_Abort;
 -- unused
-sgn_Cache_A_Rd(0) <= to_unsigned(0,gcst_WA_Idx);
+sgn_Cache_A_Rd(0) <= to_unsigned(0,gcst_WA_idxCache);
 
 inst02: Equihash_GBP_UncmpStp2
 port map(
-	Cache_A_Rd			=> sgn_Cache_A_Rd(1),--: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			=> sgn_Cache_A_Rd(1),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_AWrGen_Rst	=> sgn_Cache_AWrGen_Rst,--: out	std_logic;
 	
 	Cache_SelCh			=> sgn_Cache_SelCh(1),--: out	std_logic;
@@ -329,9 +338,13 @@ port map(
 	Mem_Rd				=> sgn_MemRd,--: out	std_logic;
 	Mem_RdBsy			=> sgn_MemRdBsy,--: in	std_logic;
 	
+	Valid				=> sgn_Stp2_Valid,--: in	std_logic;
+	
 	St					=> sgn_St_Stp1_Stp2,--: in	std_logic;
 	Ed					=> open,--: out	std_logic;
 	Bsy					=> open,--: out	std_logic;
+	
+	pQit				=> sgn_Stp2_Abort,--: out	std_logic;
 	
 	nxt_St				=> sgn_St_Stp2_Stp3,--(to step 3): out	std_logic;
 	
@@ -345,7 +358,7 @@ port map(
 
 inst03: Equihash_GBP_UncmpStp3
 port map(
-	Cache_A_Rd			=> sgn_Cache_A_Rd(2),--: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			=> sgn_Cache_A_Rd(2),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	
 	Cache_SelCh			=> sgn_Cache_SelCh(2),--: out	std_logic;
 	Cache_SelRam		=> sgn_Cache_SelRam(2),--: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
@@ -361,23 +374,23 @@ port map(
 	Bsy					=> open,--: out	std_logic;
 	
 	nxt_St				=> sgn_St_Stp3_Stp4,--(to steo 4): out	std_logic;
-	pQit				=> sgn_Ed_Stp3_Stp1,--(to steo 1): out	std_logic;
+	pQit				=> sgn_Stp3_Abort,--(to steo 1): out	std_logic;
 	
 	clk					=> clk,--: in	std_logic;
 	aclr				=> aclr--: in	std_logic
 );
 -- unused
 sgn_Cache_Wr(2) <= '0';
-sgn_Cache_A_Wr(2) <= to_unsigned(0,gcst_WA_Idx);
-sgn_Cache_Di(2) <= to_unsigned(0,gcst_WD_Idx);
+sgn_Cache_A_Wr(2) <= to_unsigned(0,gcst_WA_idxCache);
+sgn_Cache_Di(2) <= to_unsigned(0,gcst_WD_idxCache);
 
 inst04: Equihash_GBP_UncmpStp4
 port map(
 	Cache_SelCh			=> sgn_Cache_SelCh(3),--: out	std_logic;
 	Cache_SelRam		=> sgn_Cache_SelRam(3),--: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_A_Rd			=> sgn_Cache_A_Rd(3),--: out	unsigned(gcst_WA_Idx-1 downto 0);
-	Cache_A_Wr			=> sgn_Cache_A_Wr(3),--: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			=> sgn_Cache_A_Rd(3),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_A_Wr			=> sgn_Cache_A_Wr(3),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_Wr			=> sgn_Cache_Wr(3),--: out	std_logic;
 	
 	CmpRes				=> sgn_Stp4_CmpRes,--: in	std_logic;
@@ -399,7 +412,7 @@ port map(
 	Cache_SelCh			=> sgn_Cache_SelCh(4),--: out	std_logic;
 	Cache_SelRam		=> sgn_Cache_SelRam(4),--: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
-	Cache_A_Rd			=> sgn_Cache_A_Rd(4),--: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_A_Rd			=> sgn_Cache_A_Rd(4),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	rValid				=> sgn_Stp5_ResVlid,--: out	std_logic;
 	
 	St					=> sgn_St_Stp4_Stp5,--: in	std_logic;
@@ -411,8 +424,8 @@ port map(
 );
 -- unused
 sgn_Cache_Wr(4) <= '0';
-sgn_Cache_A_Wr(4) <= to_unsigned(0,gcst_WA_Idx);
-sgn_Cache_Di(4) <= to_unsigned(0,gcst_WD_Idx);
+sgn_Cache_A_Wr(4) <= to_unsigned(0,gcst_WA_idxCache);
+sgn_Cache_Di(4) <= to_unsigned(0,gcst_WD_idxCache);
 
 -- idx cache
 inst06: Equihash_GBP_UnCRam
@@ -421,7 +434,7 @@ port map(
 	A_Wr		=> sgn_Cache_A_Wr,--: in	typ_1D_Idx_A(Num_Ch-1 downto 0);
 	Di			=> sgn_Cache_Di,--: in	typ_1D_Idx_D(Num_Ch-1 downto 0); -- index 4word
 	A_Rd		=> sgn_Cache_A_Rd,--: in	typ_1D_Idx_A(Num_Ch-1 downto 0);
-	Do			=> sgn_Cache_Do,--: out	unsigned(gcst_WD_Idx-1 downto 0);
+	Do			=> sgn_Cache_Do,--: out	unsigned(gcst_WD_idxCache-1 downto 0);
 	
 	SelCh		=> sgn_Cache_SelCh,--: in	unsigned(Num_Ch-1 downto 0);
 	SelRam		=> sgn_Cache_SelRam,--: in	unsigned(Num_Ch-1 downto 0); -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
@@ -433,13 +446,15 @@ port map(
 -- input from memory
 inst07: Equihash_GBP_UnCMemIntf
 port map(
-	Mem_Di		=> Mem_Di,--(io): in	unsigned(gcst_WD_Idx-1 downto 0);
+	Mem_Di		=> Mem_Di,--(io): in	unsigned(gcst_WD_idxCache-1 downto 0);
 	Mem_RdAck	=> Mem_RdAck,--(io): in	std_logic;
 	
-	Cache_Di	=> sgn_Cache_Di(1),--: out	unsigned(gcst_WD_Idx-1 downto 0);
-	Cache_A_Wr	=> sgn_Cache_A_Wr(1),--: out	unsigned(gcst_WA_Idx-1 downto 0);
+	Cache_Di	=> sgn_Cache_Di(1),--: out	unsigned(gcst_WD_idxCache-1 downto 0);
+	Cache_A_Wr	=> sgn_Cache_A_Wr(1),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
 	Cache_Wr	=> sgn_Cache_Wr(1),--: out	std_logic;
 	Cache_A_Rst	=> sgn_Cache_AWrGen_Rst,--: in	std_logic;
+	
+	Valid		=> sgn_Stp2_Valid,--: out	std_logic;
 	
 	clk			=> clk,--: in	std_logic;
 	aclr		=> aclr--: in	std_logic
@@ -449,8 +464,8 @@ port map(
 -- Mem Addr gen
 inst08: Equihash_AddrAuxCalc
 port map(
-	AB_M			=> to_unsigned(AB_IdxArr_M,gcst_WA_Mem),--(const): in	unsigned(Width_A-1 downto 0);
-	AB_S			=> to_unsigned(AB_IdxArr_Sect,gcst_WA_Mem),--(const): in	unsigned(Width_A-1 downto 0);
+	AB_M			=> gcst_AB_MemIdx,--(const): in	unsigned(Width_A-1 downto 0);
+	AB_S			=> gcst_AB_MemIdx_Sect,--(const): in	unsigned(Width_A-1 downto 0);
 	
 	Idx				=> sgn_MemAddr_i,--: in	unsigned(Width_A-1 downto 0);
 	Sect			=> sgn_MemAddr_r,--: in	unsigned(Width_A-1 downto 0);
