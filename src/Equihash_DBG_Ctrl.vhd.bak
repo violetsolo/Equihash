@@ -93,7 +93,7 @@ begin
 		Ed <= '0';
 		Bsy <= '0';
 		-- signal
-		sgn_Rdy <= '1';
+		sgn_Rdy <= '0';
 		sgn_cnt <= 0;
 	elsif(rising_edge(clk))then
 		sgn_Rdy <= Bucket_Rdy;
@@ -118,8 +118,7 @@ begin
 				state <= S_Rdy;
 			
 			when S_Rdy =>
-				Bucket_Init <= '0';
-				if(sgn_Rdy = '0' and Bucket_Rdy = '1')then -- wait Init process finish rising edge
+				if(sgn_Rdy <= '1' and Bucket_Rdy <= '0')then -- falling edge
 					state <= S_Trg1;
 				end if;
 			

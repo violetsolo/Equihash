@@ -110,14 +110,14 @@ begin
 				end if;
 			
 			when S_IdxReq =>
-				Mem_Wr <= '0';
 				IdxReq <= '1';
 				IdxReqNum <= Param_sBn-1-sgn_j;
 				state <= S_IdxReqW;
 			
 			when S_IdxReqW =>
-				IdxReq <= '0';
+				-- hold IdxReq until ack arrive
 				if(IdxAck = '1')then
+					IdxReq <= '0';
 					sgn_Acc <= IdxAckVal;
 					state <= S_RdmC;
 				end if;

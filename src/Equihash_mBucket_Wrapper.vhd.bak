@@ -171,7 +171,7 @@ port (
 );
 end component;
 
-component Equihash_BucketMix
+component Equihash_BucketMem_Mix
 port (
 	ChAi_A				: in	unsigned(gcst_WA_Mem-1 downto 0);
 	ChAi_D				: in	unsigned(gcst_WD_Mem-1 downto 0);
@@ -329,7 +329,7 @@ port map(
 	aclr				=> aclr--: in	std_logic
 );
 
-inst04: Equihash_BucketMix
+inst04: Equihash_BucketMem_Mix
 port map(
 	ChAi_A				=> sgn_ChAi_A,--: in	unsigned(gcst_WA_Mem-1 downto 0);
 	ChAi_D				=> sgn_ChAi_D,--: in	unsigned(gcst_WD_Mem-1 downto 0);

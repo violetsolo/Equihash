@@ -85,20 +85,6 @@ port (
 	aclr		: in	std_logic := '0'
 );
 end component;
-
-component Lg_SingalPipe
-generic(
-	Width_D			: Positive;
-	Num_Pipe		: Positive
-);
-port (
-	di			: in	unsigned(Width_D-1 downto 0);
-	do			: out	unsigned(Width_D-1 downto 0);
-	
-	clk			: in	std_logic;
-	aclr		: in	std_logic
-);
-end component;
 --============================= signal declare =============================--
 type typ_DiMux is array (natural range<>) of unsigned(gcst_W_Chunk-1 downto 0);
 signal sgn_DiMux_i		: typ_DiMux(gcst_N_Chunk-1 downto 0);
@@ -106,9 +92,7 @@ signal sgn_DiMux_o		: unsigned(gcst_W_Chunk-1 downto 0);
 
 signal sgn_BucketCnt	: unsigned(cst_Width_Counter-1 downto 0);
 signal sgn_AddrBucket	: unsigned(Width_Addr-1 downto 0);
-signal sgn_AddrBuff0	: unsigned(Width_Addr-1 downto 0);
-signal sgn_AddrBuff1	: unsigned(Width_Addr-1 downto 0);
-signal sgn_AddrBuff2	: unsigned(Width_Addr-1 downto 0);
+signal sgn_AddrBuff		: unsigned(Width_Addr-1 downto 0);
 
 signal sgn_Get			: std_logic;
 signal sgn_GetIdx		: unsigned(gcst_W_Chunk-1 downto 0);
@@ -120,9 +104,7 @@ signal sgn_Di_DL		: typ_Di_DL;
 constant cst_Inc_DL		: Natural := gcst_LgRamCounter_RtlDL + 1 + 1;
 signal sgn_Inc			: std_logic;
 signal sgn_Inc_DL		: unsigned(cst_Inc_DL-1 downto 0);
-
 signal sgn_DiMuxO_DL	: unsigned(gcst_W_Chunk-1 downto 0);
-
 --============================ function declare ============================--
 
 begin
@@ -166,16 +148,14 @@ begin
 	if(rising_edge(clk))then
 		sgn_AddrBucket <= sgn_DiMuxO_DL(Bucket_Offset+Bucket_Width-1 downto Bucket_Offset) * 
 						  AB_Bucket(Width_Addr-Bucket_Width-1 downto 0);
-		sgn_AddrBuff0 <= sgn_AddrBucket + AB_Buff;
-		sgn_AddrBuff1 <= sgn_AddrBuff0 - 1;
-		sgn_AddrBuff2 <= sgn_AddrBuff1 + sgn_BucketCnt;
+		sgn_AddrBuff <= sgn_AddrBucket + sgn_BucketCnt + AB_Buff;
 	end if;
 end process;
 
 -- outout
 Cnt_o	<= to_integer(sgn_BucketCnt);
 Mem_D	<= sgn_Di_DL(cst_Di_DL-1);
-Mem_A	<= sgn_AddrBuff2;
+Mem_A	<= sgn_AddrBuff;
 Mem_Wr	<= sgn_Inc_DL(cst_Inc_DL-1);
 
 -- delay
@@ -187,12 +167,6 @@ begin
 		for i in 1 to cst_Di_DL-1 loop
 			sgn_Di_DL(i) <= sgn_Di_DL(i-1);
 		end loop;
-	end if;
-end process;
-
-process(clk)
-begin
-	if(rising_edge(clk))then
 		sgn_DiMuxO_DL <= sgn_DiMux_o;
 	end if;
 end process;

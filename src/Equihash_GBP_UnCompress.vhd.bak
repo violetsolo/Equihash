@@ -97,8 +97,6 @@ port (
 	Mem_Rd				: out	std_logic;
 	Mem_RdBsy			: in	std_logic;
 	
-	isLast				: out	std_logic;
-	
 	Valid				: in	std_logic;
 	
 	St					: in	std_logic;
@@ -211,8 +209,6 @@ port (
 	Cache_Wr	: out	std_logic;
 	Cache_A_Rst	: in	std_logic;
 	
-	isLast		: in	std_logic;
-	
 	Valid		: out	std_logic;
 	
 	clk			: in	std_logic;
@@ -281,7 +277,6 @@ signal sgn_MemRdBsy		: std_logic;
 
 signal sgn_Stp2_Valid		: std_logic;
 signal sgn_Stp2_Abort		: std_logic;
-signal sgn_Stp2_isLast		: std_logic;
 
 signal sgn_Stp3_mValL		: std_logic;
 signal sgn_Stp3_mValL_DL	: unsigned(0 downto 0);
@@ -297,13 +292,6 @@ signal sgn_Stp3_sVal		: Natural;
 signal sgn_Stp4_CmpRes		: std_logic;
 signal sgn_Stp4_mVal		: Natural;
 signal sgn_Stp4_sVal		: Natural;
-signal sgn_Stp4_CacheAWr	: unsigned(gcst_WA_idxCache-1 downto 0);
-signal sgn_Stp4_CacheWr		: std_logic;
-
-constant cst_Stp4_CacheAWr_DL	: Natural := gcst_IdxCache_RtlDL_Rd;
-signal sgn_Stp4_CacheAWr_DL	: unsigned(gcst_WA_idxCache-1 downto 0);
-constant cst_Stp4_CacheWr_DL	: Natural := gcst_IdxCache_RtlDL_Rd;
-signal sgn_Stp4_CacheWr_DL	: unsigned(0 downto 0);
 
 signal sgn_Stp5_ResVlid		: std_logic;
 signal sgn_ResValid			: unsigned(0 downto 0);
@@ -349,8 +337,6 @@ port map(
 	Mem_Addr_r			=> sgn_MemAddr_r,--: out	unsigned(gcst_WA_Mem-1 downto 0);
 	Mem_Rd				=> sgn_MemRd,--: out	std_logic;
 	Mem_RdBsy			=> sgn_MemRdBsy,--: in	std_logic;
-	
-	isLast				=> sgn_Stp2_isLast,--: out	std_logic;
 	
 	Valid				=> sgn_Stp2_Valid,--: in	std_logic;
 	
@@ -404,8 +390,8 @@ port map(
 	Cache_SelRam		=> sgn_Cache_SelRam(3),--: out	std_logic; -- '1' Ram A output and Ram B input; '0' Ram A input and Ram B output
 	
 	Cache_A_Rd			=> sgn_Cache_A_Rd(3),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
-	Cache_A_Wr			=> sgn_Stp4_CacheAWr,--: out	unsigned(gcst_WA_idxCache-1 downto 0);
-	Cache_Wr			=> sgn_Stp4_CacheWr,--: out	std_logic;
+	Cache_A_Wr			=> sgn_Cache_A_Wr(3),--: out	unsigned(gcst_WA_idxCache-1 downto 0);
+	Cache_Wr			=> sgn_Cache_Wr(3),--: out	std_logic;
 	
 	CmpRes				=> sgn_Stp4_CmpRes,--: in	std_logic;
 	
@@ -420,8 +406,6 @@ port map(
 );
 -- from cache output
 sgn_Cache_Di(3) <= sgn_Cache_Do;
-sgn_Cache_A_Wr(3) <= sgn_Stp4_CacheAWr_DL; -- delay
-sgn_Cache_Wr(3) <= sgn_Stp4_CacheWr_DL(0); -- delay
 
 inst05: Equihash_GBP_UncmpStp5
 port map(
@@ -470,8 +454,6 @@ port map(
 	Cache_Wr	=> sgn_Cache_Wr(1),--: out	std_logic;
 	Cache_A_Rst	=> sgn_Cache_AWrGen_Rst,--: in	std_logic;
 	
-	isLast		=> sgn_Stp2_isLast,--: in	std_logic;
-	
 	Valid		=> sgn_Stp2_Valid,--: out	std_logic;
 	
 	clk			=> clk,--: in	std_logic;
@@ -503,21 +485,14 @@ begin
 		sgn_MemRdCnt <= 0;
 		sgn_MemRdBsy <= '0';
 	elsif(rising_edge(clk))then
-		if(sgn_Stp2_isLast='0')then
-			if(sgn_MemRd='1' and sgn_Cache_Wr(1) = '0')then
-				sgn_MemRdCnt <= sgn_MemRdCnt + 2;
-			elsif(sgn_MemRd='0' and sgn_Cache_Wr(1) = '1')then
-				sgn_MemRdCnt <= sgn_MemRdCnt - 1;
-			elsif(sgn_MemRd='1' and sgn_Cache_Wr(1) = '1')then
-				sgn_MemRdCnt <= sgn_MemRdCnt + 1;
-			end if;
-		else-- last round
-			if(sgn_MemRd='1' and sgn_Cache_Wr(1) = '0')then
-				sgn_MemRdCnt <= sgn_MemRdCnt + 1;
-			elsif(sgn_MemRd='0' and sgn_Cache_Wr(1) = '1')then
-				sgn_MemRdCnt <= sgn_MemRdCnt - 1;
-			end if;
+		if(sgn_MemRd='1' and sgn_Cache_Wr(1) = '0')then
+			sgn_MemRdCnt <= sgn_MemRdCnt + 2;
+		elsif(sgn_MemRd='0' and sgn_Cache_Wr(1) = '1')then
+			sgn_MemRdCnt <= sgn_MemRdCnt - 1;
+		elsif(sgn_MemRd='1' and sgn_Cache_Wr(1) = '1')then
+			sgn_MemRdCnt <= sgn_MemRdCnt + 1;
 		end if;
+		
 		if(sgn_MemRdCnt=0)then
 			sgn_MemRdBsy <= '0';
 		else
@@ -560,11 +535,11 @@ end process;
 
 -- step 4
 -- compare
-sgn_Stp4_sVal <= to_integer(sgn_Cache_Do);
+sgn_Stp4_mVal <= to_integer(sgn_Cache_Do);
 process(clk)
 begin
 	if(rising_edge(clk))then
-		sgn_Stp4_mVal <= to_integer(sgn_Cache_Do);
+		sgn_Stp4_sVal <= to_integer(sgn_Cache_Do);
 	end if;
 end process;
 
@@ -599,13 +574,5 @@ port map(di => Fnc_STD2U0(sgn_Stp3_CmpL), do => sgn_Stp3_CmpL_DL, clk => clk, ac
 instPP04: Lg_SingalPipe
 generic map(Width_D => 1, Num_Pipe => cst_Stp5_ResValid_DL) -- 4
 port map(di => Fnc_STD2U0(sgn_Stp5_ResVlid), do => sgn_ResValid, clk => clk, aclr => aclr);
---
-instPP05: Lg_SingalPipe
-generic map(Width_D => 1, Num_Pipe => cst_Stp4_CacheWr_DL) -- 4
-port map(di => Fnc_STD2U0(sgn_Stp4_CacheWr), do => sgn_Stp4_CacheWr_DL, clk => clk, aclr => aclr);
---
-instPP06: Lg_SingalPipe
-generic map(Width_D => gcst_WA_idxCache, Num_Pipe => cst_Stp4_CacheAWr_DL) -- 4
-port map(di => sgn_Stp4_CacheAWr, do => sgn_Stp4_CacheAWr_DL, clk => clk, aclr => '0');
 
 end rtl;

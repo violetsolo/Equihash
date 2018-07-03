@@ -133,7 +133,6 @@ port (
 	
 	St				: in	std_logic;
 	Ed				: out	std_logic;
-	pQuit			: out	std_logic;
 	Bsy				: out	std_logic;
 	
 	nxt_St			: out	std_logic;
@@ -151,7 +150,7 @@ generic(
 port (
 	Param_q			: out	unsigned(gcst_WA_Mem-1 downto 0);
 	
-	sThread_Sel		: out	Natural range 0 to Num_sThread-1;
+	sThread_Sel		: out Natural range 0 to Num_sThread-1;
 	sThread_Ed		: in	unsigned(Num_sThread-1 downto 0);
 	
 	St				: in	std_logic;
@@ -203,7 +202,6 @@ signal sgn_St_sThD_Stp2			: std_logic;
 
 signal sgn_Ed_Stp2_sThD			: std_logic;
 signal sgn_Ed_sThD_Stp1			: std_logic;
-signal sgn_Quit_Stp2_sThD		: std_logic;
 
 -- param
 -- from stp1
@@ -219,16 +217,12 @@ signal sgn_Stp2MemRdAck			: std_logic;
 signal sgn_Stp2MemRdGuard		: Natural range 0 to mBucket_MaxCap+10 := 0;
 signal sgn_Stp2MemRd			: std_logic;
 
-signal sgn_sThread_Ed			: unsigned(Num_sThread-1 downto 0);
-signal sgn_sThread_Q			: unsigned(Num_sThread-1 downto 0);
-signal sgn_sThread_Sel			: Natural;
-
 -- delay
 constant cst_Stp2MemRd_DL		: Natural := gcst_AddrAuxCalc_RtlDL; -- 2
 signal sgn_Stp2MemRd_DL			: unsigned(0 downto 0);
 --
 constant cst_Stp2MemRdBsy_DL	: Natural := gcst_BucketDisp_RtlDL_pp + 
-											 gcst_LpmRam_RtlDL_Rd + 1 - 1; -- 8
+											 gcst_LpmRam_RtlDL_Wr + 1; -- 8
 signal sgn_Stp2MemRdBsy_DL		: unsigned(0 downto 0);
 
 --============================ function declare ============================--
@@ -277,7 +271,6 @@ port map(
 	
 	St				=> sgn_St_sThD_Stp2,--: in	std_logic;
 	Ed				=> sgn_Ed_Stp2_sThD,--: out	std_logic;
-	pQuit			=> sgn_Quit_Stp2_sThD,--: out	std_logic;
 	Bsy				=> open,--: out	std_logic;
 	
 	nxt_St			=> sThread_St,--: out	std_logic;
@@ -290,8 +283,8 @@ inst03: Equihash_GBP_CllsSDisp
 port map(
 	Param_q			=> sgn_q,--: out	unsigned(gcst_WA_Mem-1 downto 0);
 	
-	sThread_Sel		=> sgn_sThread_Sel,--: out Natural range 0 to Num_sThread-1;
-	sThread_Ed		=> sgn_sThread_Ed,--: in	unsigned(Num_sThread-1 downto 0);
+	sThread_Sel		=> sThread_Sel,--: out Natural range 0 to Num_sThread-1;
+	sThread_Ed		=> sThread_Ed,--: in	unsigned(Num_sThread-1 downto 0);
 	
 	St				=> sgn_St_Stp1_sThD,--: in	std_logic;
 	Ed				=> sgn_Ed_sThD_Stp1,--: out	std_logic;
@@ -303,23 +296,6 @@ port map(
 	clk				=> clk,--: in	std_logic;
 	aclr			=> aclr--: in	std_logic
 );
-
-sThread_Sel <= sgn_sThread_Sel;
-
--- thread end 
-process(clk)
-begin
-	if(rising_edge(clk))then
-		for i in 0 to Num_sThread-1 loop
-			if(i = sgn_sThread_Sel)then
-				sgn_sThread_Q(i) <= sgn_Quit_Stp2_sThD;
-			else
-				sgn_sThread_Q(i) <= '0';
-			end if;
-		end loop;
-	end if;
-end process;
-sgn_sThread_Ed <= sThread_Ed or sgn_sThread_Q;
 
 -- step 2 part
 mBucket_GetIdx <= sgn_q(gcst_W_Chunk-1 downto 0);

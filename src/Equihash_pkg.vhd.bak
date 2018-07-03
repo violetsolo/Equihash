@@ -37,7 +37,7 @@ constant gcst_W_Idx				: Natural := 4; -- Byte
 constant gcst_mBucket_Width		: Natural := 12;
 constant gcst_mBucket_Offset	: Natural := 0;
 constant gcst_mBucket_Num		: Natural := 2**12;
-constant gcst_mBucket_MaxCap	: Natural := 3*(2**9);--2**11; -- 3*2**9
+constant gcst_mBucket_MaxCap	: Natural := 3*2**9;--2**11; -- 3*2**9
 
 constant gcst_sBucket_Width		: Natural := 8;
 constant gcst_sBucket_Offset	: Natural := 12;
@@ -45,14 +45,14 @@ constant gcst_sBucket_Num		: Natural := 2**8;
 constant gcst_sBucket_MaxCap	: Natural := 17;--2**5 -- 17
 
 constant gcst_N_Chunk			: Natural := gcst_Equihash_k+1; -- 10 = 9+1
-constant gcst_W_Chunk			: Natural := gcst_Equihash_n / (gcst_N_Chunk); -- 20 = 200/10
+constant gcst_W_Chunk			: Natural := gcst_Equihash_n / (gcst_Equihash_k+1); -- 20 = 200/10
 
 -- mem port param(data)
 constant gcst_WA_Mem			: Natural := 32;
 constant gcst_WD_Mem			: Natural := 256;
 -- mem addr param(data)
 constant gcst_AB_MemA			: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(0, gcst_WA_Mem);
-constant gcst_AB_MemB			: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(gcst_mBucket_MaxCap*gcst_mBucket_Num,gcst_WA_Mem);
+constant gcst_AB_MemB			: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(0, gcst_WA_Mem); -- to_unsigned(gcst_mBucket_MaxCap*mBucket_Num,gcst_WA_Mem);
 constant gcst_mBucket_Sect		: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(gcst_mBucket_MaxCap, gcst_WA_Mem);
 -- mem addr param(Idx)
 constant gcst_AB_MemIdx			: unsigned(gcst_WA_Mem-1 downto 0) := to_unsigned(0, gcst_WA_Mem); -- to_unsigned(gcst_mBucket_MaxCap*mBucket_Num*2,gcst_WA_Mem);
@@ -82,13 +82,10 @@ type typ_1D_Idx_D is array (natural range<>) of unsigned(gcst_WD_idxCache-1 down
 type typ_1D_Idx_A is array (natural range<>) of unsigned(gcst_WA_idxCache-1 downto 0);
 
 -- user defined module delay
-constant gcst_BucketDisp_RtlDL_Get		: Natural := gcst_LgRamCounter_RtlDL + 1; -- 5
-constant gcst_BucketDisp_RtlDL_pp		: Natural := gcst_LgRamCounter_RtlDL + 2; -- 6
+constant gcst_BucketDisp_RtlDL_Get		: Natural := gcst_LgRamCounter_RtlDL + 1; -- 4
+constant gcst_BucketDisp_RtlDL_pp		: Natural := gcst_LgRamCounter_RtlDL + 2; -- 5
 constant gcst_BucketRt2x2_RtlDL			: Natural := 1;
-constant gcst_BucketMix_RtlDL			: Natural := 1;
-
 constant gcst_AddrAuxCalc_RtlDL			: Natural := 2;
-
 constant gcst_LpmRam_RtlDL_Rd			: Natural := 2; -- read ram data
 constant gcst_LpmRam_RtlDL_Wr			: Natural := 1; -- write ram data
 

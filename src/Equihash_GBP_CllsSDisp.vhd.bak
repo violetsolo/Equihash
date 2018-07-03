@@ -108,7 +108,7 @@ begin
 			
 			when S_Robin =>
 				if(sgn_sThSt(sgn_sThCnt) = '1')then -- current thread busy
-					if(sgn_sThCnt = Num_sThread-1)then -- to next thread status
+					if(sgn_sThCnt = Num_sThread-1)then
 						sgn_sThCnt <= 0; -- round
 					else
 						sgn_sThCnt <= sgn_sThCnt + 1; -- increase
@@ -123,11 +123,9 @@ begin
 				end if;
 			
 			when S_nxtW => -- wait for thread begin (stp2 finish)
-				nxt_St <= '0';
 				sgn_sThSet <= (others => '0'); -- clear set signal
 				if(nxt_Ed='1')then
---					if(sgn_q = mBucket_Num-1)then -- last bucket is in process
-					if(sgn_q = 100-1)then -- (only for test)last bucket is in process
+					if(sgn_q = mBucket_Num-1)then -- last bucket is in process
 						sgn_q <= 0; -- reset sgn_q
 						state <= S_FinW;
 					else

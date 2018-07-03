@@ -54,9 +54,6 @@ architecture rtl of Equihash_GBP_IdxMng is
 --============================= signal declare =============================--
 signal sgn_cnt		: Natural;
 signal sgn_pp		: Natural range 0 to Num_Ch-1;
-
-signal sgn_req		: unsigned(Num_Ch-1 downto 0);
-signal sgn_st		: unsigned(Num_Ch-1 downto 0);
 --============================ function declare ============================--
 
 begin
@@ -69,36 +66,23 @@ begin
 		Ack <= (others => '0');
 		sgn_cnt <= 0;
 		sgn_pp <= 0;
-		sgn_req <= (others => '1');
-		sgn_st <= (others => '0');
 	elsif(rising_edge(clk))then
-		-- get request and set state
-		sgn_req <= req;
-		for i in 0 to Num_Ch-1 loop
-			if(sgn_req(i)='0' and Req(i)='1')then-- rising edge
-				sgn_st(i) <= '1';
-			end if;
-		end loop;
-		-- reset cnt
 		if(Rst = '1')then
 			sgn_cnt <= 0;
 		end if;
-		-- robin
 		if(sgn_pp = Num_Ch-1)then
 			sgn_pp <= 0;
 		else
 			sgn_pp <= sgn_pp + 1;
 		end if;
-		-- generate ack accroding to request
-		if(sgn_st(sgn_pp) = '1')then
-			sgn_cnt <= sgn_cnt + ReqNum(sgn_pp); -- acc
-			AckVal <= sgn_cnt; -- 
-			sgn_st(sgn_pp) <= '0'; -- clear state
+		if(Req(sgn_pp) = '1')then
+			sgn_cnt <= sgn_cnt + ReqNum(sgn_pp);
+			AckVal <= sgn_cnt;
 			for i in 0 to Num_Ch-1 loop
-				if(i=sgn_pp)then -- 
-					Ack(sgn_pp) <= '1'; -- set current ack
+				if(i=sgn_pp)then
+					Ack(sgn_pp) <= '1';
 				else
-					Ack(sgn_pp) <= '0'; -- clear others ack
+					Ack(sgn_pp) <= '0';
 				end if;
 			end loop;
 		else

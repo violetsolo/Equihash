@@ -1,0 +1,56 @@
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 		Logotorix
+-- 
+-- Create Date:    28/06/2018 
+-- Design Name: 
+-- Module Name:    Equihash_PoW_Wrapper - Behavioral
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+--
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;	
+
+library work;
+use work.LgGlobal_pkg.all;
+use work.Equihash_pkg.all;
+
+entity Equihash_PoW_Wrapper is
+port (
+	
+	St					: in	std_logic;
+	Ed					: out	std_logic;
+	
+	clk					: in	std_logic;
+	aclr				: in	std_logic
+);
+end Equihash_PoW_Wrapper;
+
+architecture rtl of Equihash_PoW_Wrapper is
+--============================ constant declare ============================--
+
+--======================== Altera component declare ========================--
+
+--===================== user-defined component declare =====================--
+
+--============================= signal declare =============================--
+
+--============================ function declare ============================--
+
+begin
+
+
+
+
+end rtl;

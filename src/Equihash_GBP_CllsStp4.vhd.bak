@@ -67,7 +67,7 @@ architecture rtl of Equihash_GBP_CllsStp4 is
 --===================== user-defined component declare =====================--
 
 --============================= signal declare =============================--
-type typ_state is (S_Idle, S_GetCnt, S_Rd, S_Wr, S_IdxReq); --S_nxtSt, 
+type typ_state is (S_Idle, S_GetCnt, S_Rd, S_Wr, S_nxtSt, S_IdxReq);
 signal state	: typ_state;
 
 signal sgn_j	: Natural range 0 to sBucket_MaxCap := 0;
@@ -107,20 +107,18 @@ begin
 				end if;
 			
 			when S_IdxReq =>
-				IdxReq <= '0';
+				-- hold IdxReq until ack arrive
 				if(IdxAck = '1')then
+					IdxReq <= '0';
 					sgn_Acc <= IdxAckVal;
 					state <= S_Rd;
 				end if;
 			
 			when S_Rd => -- read idx from cache first
 				Cache_IdxWr <= '0';
-				if(sgn_j = Param_sBn)then -- read finish
+				if(sgn_j = Param_sBn-1)then -- read finish
 					sgn_j <= 0; -- reset sgn_j
---					state <= S_nxtSt;
-					nxt_St <= '1';
-					Ed <= '1';
-					state <= S_Idle;
+					state <= S_nxtSt;
 				else
 					Cache_Addr_j <= to_unsigned(sgn_j,Cache_Addr_j'length);-- set address outer sgn_j
 					Mem_Addr_j <= to_unsigned(sgn_Acc,Mem_Addr_j'length);
@@ -138,10 +136,10 @@ begin
 				sgn_Acc <= sgn_Acc + 1; -- Acc increase
 				state <= S_Rd;
 			
---			when S_nxtSt =>
---				nxt_St <= '1';
---				Ed <= '1';
---				state <= S_Idle;
+			when S_nxtSt =>
+				nxt_St <= '1';
+				Ed <= '1';
+				state <= S_Idle;
 			
 			when others => State <= S_Idle;
 		end case;

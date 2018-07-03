@@ -38,8 +38,6 @@ port (
 	Mem_Rd				: out	std_logic;
 	Mem_RdBsy			: in	std_logic;
 	
-	isLast				: out	std_logic;
-	
 	Valid				: in	std_logic;
 	
 	St					: in	std_logic;
@@ -94,7 +92,6 @@ begin
 		sgn_SelRam <= '0';
 		nxt_St <= '0';
 		pQit <= '0';
-		isLast <= '0';
 		Ed <= '0';
 		Bsy <= '0';
 		-- signal
@@ -109,7 +106,6 @@ begin
 				Ed <= '0';
 				pQit <= '0';
 				nxt_St <= '0';
-				isLast <= '0';
 				if(St = '1')then
 					Cache_SelCh <= '1';
 					state <= S_preRd;
@@ -120,9 +116,6 @@ begin
 				end if;
 			
 			when S_preRd =>
-				if(sgn_rCnt_inv = 0)then
-					isLast <= '1';
-				end if;
 				sgn_SelRam <= not sgn_SelRam; -- cross ram A and ram B
 				Cache_AWrGen_Rst <= '1'; -- reset cache write address generator
 				Mem_Addr_r <= to_unsigned(sgn_rCnt_inv,gcst_WA_Mem); -- set Mem addr r
@@ -146,6 +139,7 @@ begin
 						sgn_rCnt_inv <= gcst_Round+1-1; -- reset round counter
 						sgn_rCnt <= 0; -- reset round counter
 						sgn_SelRam <= '0'; -- reset cross state
+						nxt_St <= '1';
 						Ed <= '1';
 						pQit <= '1';
 						state <= S_Idle;

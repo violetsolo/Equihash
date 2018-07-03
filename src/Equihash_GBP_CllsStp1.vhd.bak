@@ -115,22 +115,22 @@ begin
 				IdxMngRst <= '1';
 				if(sgn_Round = gcst_Round-1)then -- last round 0~8
 					mBucket_ChunkSel <= 0; -- no care
-					LastRound <= '1'; -- no mbucket inc 
+					LastRound <= '0'; -- no mbucket inc 
 				else
 					mBucket_ChunkSel <= to_integer(sgn_Round+1); -- chunk select (point to next chunk)
-					LastRound <= '0'; -- mbucket inc enable
+					LastRound <= '1'; -- mbucket inc enable
 				end if;
 				sBucket_ChunkSel <= to_integer(sgn_Round);
 				if(sgn_Round(0) <= '0')then -- even turn src data in A and dst data to B
 					sgn_mBucketRt_IncSet	<= '0'; -- Inc channel is B(this module connect to channel B)
-					mBucketRt_GetSet		<= '1'; -- Get channel is A(this module connect to channel B)
-					Mem_AB_Buff_Rd			<= AB_Buff_A; -- read buff A
-					Mem_AB_Buff_Wr			<= AB_Buff_B; -- write buff B (to mBucket)
+					mBucketRt_GetSet	<= '1'; -- Get channel is A(this module connect to channel B)
+					Mem_AB_Buff_Rd		<= AB_Buff_A; -- read buff A
+					Mem_AB_Buff_Wr		<= AB_Buff_B; -- write buff B (to mBucket)
 				else -- odd turn src data in B and dst data to A
 					sgn_mBucketRt_IncSet	<= '1'; -- Inc channel is A(this module connect to channel B)
-					mBucketRt_GetSet		<= '0'; -- Get channel is B(this module connect to channel B)
-					Mem_AB_Buff_Rd			<= AB_Buff_B; -- read buff B
-					Mem_AB_Buff_Wr			<= AB_Buff_A; -- write buff A (to mBucket)
+					mBucketRt_GetSet	<= '0'; -- Get channel is B(this module connect to channel B)
+					Mem_AB_Buff_Rd		<= AB_Buff_B; -- read buff B
+					Mem_AB_Buff_Wr		<= AB_Buff_A; -- write buff A (to mBucket)
 				end if;
 				state <= S_Init;
 			

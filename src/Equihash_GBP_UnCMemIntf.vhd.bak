@@ -44,8 +44,6 @@ port (
 	Cache_Wr	: out	std_logic;
 	Cache_A_Rst	: in	std_logic;
 	
-	isLast		: in	std_logic;
-	
 	Valid		: out	std_logic;
 	
 	clk			: in	std_logic;
@@ -87,7 +85,7 @@ END component;
 --===================== user-defined component declare =====================--
 
 --============================= signal declare =============================--
-type typ_state is (S_Idle, S_Wr1, S_Wr2, S_Wrlst);
+type typ_state is (S_Idle, S_Wr1, S_Wr2);
 signal state			: typ_state;
 
 signal sgn_fifo_empty	: std_logic;
@@ -138,11 +136,7 @@ begin
 				Cache_Wr <= '0';
 				if(sgn_fifo_empty = '0')then
 					sgn_fifo_rd <= '1';
-					if(isLast='1')then-- last data
-						state <= S_Wrlst;
-					else
-						state <= S_Wr1;
-					end if;
+					state <= S_Wr1;
 				end if;
 				if(Cache_A_Rst='1')then
 					sgn_cnt <= 0;
@@ -170,16 +164,6 @@ begin
 				sgn_cnt <= sgn_cnt + 1;
 				state <= S_Idle;
 			
-			when S_WrLst =>
-				sgn_fifo_rd <= '0';
-				Valid <= '0';
-				Cache_Di <= to_unsigned(0,gcst_WD_Cache_Stp) & 
-							sgn_Idx;-- low 24bit
-				Cache_Wr <= '1';
-				Cache_A_Wr <= to_unsigned(sgn_cnt, gcst_WA_idxCache);
-				sgn_cnt <= sgn_cnt + 1;
-				state <= S_Idle;
-				
 			when others => state <= S_Idle;
 		end case;
 	end if;

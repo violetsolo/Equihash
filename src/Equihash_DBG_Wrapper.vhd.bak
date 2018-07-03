@@ -69,7 +69,7 @@ constant cst_ResNum_Byt			: Natural := cst_ResNum_bit/gcst_WW; -- 25
 --===================== user-defined component declare =====================--
 component Equihash_DBG_Ctrl
 generic(
-	Num_Idx				: Natural := 1000 -- (only for test)2**(gcst_W_Chunk)   -- 2^20
+	Num_Idx				: Natural := 2**(gcst_W_Chunk) -- 2^20
 );
 port (
 	-- Bucket router config
@@ -136,7 +136,6 @@ signal sgn_idx			: Natural;
 
 signal sgn_Trg			: std_logic;
 signal sgn_Sel			: std_logic;
-signal sgn_Ed			: std_logic;
 
 constant cst_Trg_DL		: Natural := gcst_BlakeLite_RtlDL;
 signal sgn_Trg_DL		: unsigned(0 downto 0);
@@ -144,8 +143,6 @@ constant cst_Sel_DL		: Natural := gcst_BlakeLite_RtlDL;
 signal sgn_Sel_DL		: unsigned(0 downto 0);
 constant cst_Idx_DL		: Natural := gcst_BlakeLite_RtlDL;
 signal sgn_Idx_DL		: unsigned(gcst_W_Idx*gcst_WW-1 downto 0);
-constant cst_Ed_DL		: Natural := gcst_BlakeLite_RtlDL;
-signal sgn_Ed_DL		: unsigned(0 downto 0);
 --============================ function declare ============================--
 
 begin
@@ -176,7 +173,7 @@ sgn_Blake2b_Param.Rvs 			<= to_unsigned(0, 14*gcst_WW);
 sgn_Blake2b_Param.Salt 			<= to_unsigned(0, 16*gcst_WW);
 
 i0100: for i in 0 to 8-1 generate
-	sgn_Blake2b_Param.Personal((i+1)*gcst_WW-1 downto i*gcst_WW) <= to_unsigned(character'pos(cst_Param_Personal(i+1)), gcst_WW);
+--	sgn_Blake2b_Param.Personal(i) <= to_unsigned(character'pos(cst_Param_Personal(i)), gcst_WW);
 end generate i0100;
 i0200: for i in 0 to 4-1 generate
 	sgn_Blake2b_Param.Personal((i+8+1)*gcst_WW-1 downto (i+8)*gcst_WW) <= cst_Param_n((i+1)*gcst_WW-1 downto i*gcst_WW);--n
@@ -219,14 +216,12 @@ port map(
 	Valid				=> Valid,--(io): in	std_logic;
 	
 	St					=> St,--(io): in	std_logic;
-	Ed					=> sgn_Ed,--(io): out	std_logic;
+	Ed					=> Ed,--(io): out	std_logic;
 	Bsy					=> open,--: out	std_logic;
 	
 	clk					=> clk,--: in	std_logic;
 	aclr				=> aclr--: in	std_logic
 );
-
-Ed <= sgn_Ed_DL(0);
 
 -- output sel
 process(clk)
@@ -237,13 +232,13 @@ begin
 				Bucket_Di((i+1)*gcst_WW-1 downto i*gcst_WW) <= sgn_Blake2b_Res(i);
 			end loop;
 			Bucket_Di(gcst_WD_Mem-gcst_WD_Mem_Apdix-1 downto cst_ResNum_bit) <= (others => '0');
-			Bucket_Di(gcst_WD_Mem-1 downto gcst_WD_Mem-gcst_WD_Mem_Apdix) <= to_unsigned(to_integer(sgn_Idx_DL sll 1),gcst_WD_Mem_Apdix); -- *2
+			Bucket_Di(gcst_WD_Mem-1 downto gcst_WD_Mem-gcst_WD_Mem_Apdix) <= to_unsigned(to_integer(sgn_Idx_DL srl 1),gcst_WD_Mem_Apdix); -- *2
 		else -- first half result
 			for i in 0 to cst_ResNum_Byt-1 loop
 				Bucket_Di((i+1)*gcst_WW-1 downto i*gcst_WW) <= sgn_Blake2b_Res(i+cst_ResNum_Byt);
 			end loop;
 			Bucket_Di(gcst_WD_Mem-gcst_WD_Mem_Apdix-1 downto cst_ResNum_bit) <= (others => '0');
-			Bucket_Di(gcst_WD_Mem-1 downto gcst_WD_Mem-gcst_WD_Mem_Apdix) <= to_unsigned(to_integer((sgn_Idx_DL sll 1)+1),gcst_WD_Mem_Apdix); -- *2+1
+			Bucket_Di(gcst_WD_Mem-1 downto gcst_WD_Mem-gcst_WD_Mem_Apdix) <= to_unsigned(to_integer((sgn_Idx_DL srl 1)+1),gcst_WD_Mem_Apdix); -- *2+1
 		end if;
 	end if;
 end process;
@@ -270,9 +265,6 @@ instPP03: Lg_SingalPipe
 generic map(Width_D => gcst_W_Idx*gcst_WW, Num_Pipe => cst_Idx_DL)
 port map(di => sgn_idx_fmt, do => sgn_Idx_DL, clk => clk, aclr => '0');
 --
-instPP04: Lg_SingalPipe
-generic map(Width_D => 1, Num_Pipe => cst_Ed_DL)
-port map(di => Fnc_STD2U0(sgn_Ed), do => sgn_Ed_DL, clk => clk, aclr => aclr);
---
+
 
 end rtl;
