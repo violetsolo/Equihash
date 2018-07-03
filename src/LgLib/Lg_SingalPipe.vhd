@@ -77,4 +77,8 @@ i0200: if(Num_Pipe = 1)generate
 	do <= sgn_pp(Num_Pipe-1);
 end generate i0200;
 
+i0300: if(Num_Pipe = 0)generate
+	do <= di;
+end generate i0300;
+
 end rtl;

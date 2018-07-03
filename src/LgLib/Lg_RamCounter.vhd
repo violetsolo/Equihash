@@ -46,7 +46,6 @@ port (
 	Rdy			: out	std_logic;
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end Lg_RamCounter;
@@ -147,14 +146,10 @@ begin
 	if(aclr='1')then
 		sgn_Ram_Wr <= '0';
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			sgn_Ram_Wr <= '0';
+		if(sgn_IntSel='1')then
+			sgn_Ram_Wr <= sgn_Inc_DL(1);
 		else
-			if(sgn_IntSel='1')then
-				sgn_Ram_Wr <= sgn_Inc_DL(1);
-			else
-				sgn_Ram_Wr <= sgn_Ram_Wr_Int;
-			end if;
+			sgn_Ram_Wr <= sgn_Ram_Wr_Int;
 		end if;
 	end if;
 end process;
@@ -221,45 +216,37 @@ begin
 		sgn_IntSel <= '0';
 		Rdy <= '0';
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			state <= S_Init;
-			sgn_Ram_Addr_Wr_Int <= to_unsigned(0, sgn_Ram_Addr_Wr_Int'length);
-			sgn_Ram_Wr_Int <= '1';
-			sgn_IntSel <= '0';
-			Rdy <= '0';
-		else
-			case state is
-				when S_Idle =>
-					sgn_Ram_Addr_Wr_Int <= to_unsigned(0, sgn_Ram_Addr_Wr_Int'length);
-					if(Init='1')then
-						state <= S_Init;
-						sgn_Ram_Wr_Int <= '1';
-						sgn_IntSel <= '0';
-						Rdy <= '0';
-					else
-						sgn_Ram_Wr_Int <= '0';
-						sgn_IntSel <= '1';
-						Rdy <= '1';
-					end if;
-					
-				when S_Init =>
-					if(sgn_Ram_Addr_Wr_Int = Num_Cnt-1)then
-						sgn_Ram_Wr_Int <= '0';
-						sgn_IntSel <= '1';
-						state <= S_Idle;
-					else
-						sgn_Ram_Addr_Wr_Int <= sgn_Ram_Addr_Wr_Int + 1;
-						sgn_Ram_Wr_Int <= '1';
-						sgn_IntSel <= '0';
-					end if;
-					
-				when others => 
-					state <= S_Idle;
-					sgn_Ram_Addr_Wr_Int <= to_unsigned(0, sgn_Ram_Addr_Wr_Int'length);
-					sgn_Ram_Wr_Int <= '0';
+		case state is
+			when S_Idle =>
+				sgn_Ram_Addr_Wr_Int <= to_unsigned(0, sgn_Ram_Addr_Wr_Int'length);
+				if(Init='1')then
+					state <= S_Init;
+					sgn_Ram_Wr_Int <= '1';
 					sgn_IntSel <= '0';
-			end case;
-		end if;
+					Rdy <= '0';
+				else
+					sgn_Ram_Wr_Int <= '0';
+					sgn_IntSel <= '1';
+					Rdy <= '1';
+				end if;
+				
+			when S_Init =>
+				if(sgn_Ram_Addr_Wr_Int = Num_Cnt-1)then
+					sgn_Ram_Wr_Int <= '0';
+					sgn_IntSel <= '1';
+					state <= S_Idle;
+				else
+					sgn_Ram_Addr_Wr_Int <= sgn_Ram_Addr_Wr_Int + 1;
+					sgn_Ram_Wr_Int <= '1';
+					sgn_IntSel <= '0';
+				end if;
+				
+			when others => 
+				state <= S_Idle;
+				sgn_Ram_Addr_Wr_Int <= to_unsigned(0, sgn_Ram_Addr_Wr_Int'length);
+				sgn_Ram_Wr_Int <= '0';
+				sgn_IntSel <= '0';
+		end case;
 	end if;
 end process;
 
@@ -270,19 +257,15 @@ begin
 	if(aclr='1')then
 		sgn_Inc_DL <= to_unsigned(0,sgn_Inc_DL'length);
 	elsif(rising_edge(clk))then
-		if(sclr='1')then
-			sgn_Inc_DL <= to_unsigned(0,sgn_Inc_DL'length);
-		else
-			sgn_Inc_DL(0) <= sgn_Inc;
-			for i in 1 to cst_Inc_DL-1 loop
-				sgn_Inc_DL(i) <= sgn_Inc_DL(i-1);
-			end loop;
-		end if;
+		sgn_Inc_DL(0) <= sgn_Inc;
+		for i in 1 to cst_Inc_DL-1 loop
+			sgn_Inc_DL(i) <= sgn_Inc_DL(i-1);
+		end loop;
 	end if;
 end process;
 
 sgn_Pos <= Idx_Cnt;
-process(clk,aclr)
+process(clk)
 begin
 	if(rising_edge(clk))then
 		sgn_Pos_DL(0) <= sgn_Pos;

@@ -36,7 +36,6 @@ port (
 	Sel			: in	unsigned(Num-1 downto 0);
 	
 	clk			: in	std_logic;
-	sclr		: in	std_logic := '1';
 	aclr		: in	std_logic := '1'
 );
 end Lg_Mux_nL1b_T2;
