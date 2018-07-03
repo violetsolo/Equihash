@@ -34,7 +34,6 @@ port (
 	v_o		: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 	
 	clk		: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end Blake2b_Mix;
@@ -48,9 +47,9 @@ constant cst_Vn		: Positive := 2;
 --===================== user-defined component declare =====================--
 component Blake2b_Mix_Gx4
 generic(
-	Rn		 	: Natural range 0 to gcst_Blake_Round-1; -- 0~11
-	Gn			: Natural range 0 to gcst_Blake_Gn-1; -- 0/1
-	Vn			: Natural range 0 to gcst_Blake_Vn-1 -- 0/1
+	Rn		: Natural range 0 to gcst_Blake_Round-1; -- 0~11
+	Gn		: Natural range 0 to gcst_Blake_Gn-1; -- 0/1
+	Vn		: Natural range 0 to gcst_Blake_Vn-1 -- 0/1
 );
 port (
 	v_i		: in	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
@@ -60,8 +59,7 @@ port (
 	m_o		: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 	
 	clk		: in	std_logic;
-	sclr		: in	std_logic := '0';
-	aclr		: in	std_logic := '0'
+	aclr	: in	std_logic := '0'
 );
 end component;
 --============================= signal declare =============================--
@@ -81,9 +79,9 @@ i0100: for i in 0 to gcst_Blake_Round-1 generate
 		i0111: for k in 0 to gcst_Blake_Vn-1 generate
 			inst01: Blake2b_Mix_Gx4
 			generic map(
-				Rn		 	=> i,--: Natural range 0 to gcst_Blake_Round-1; -- 0~11
-				Gn			=> j,--: Natural range 0 to gcst_Blake_Gn-1; -- 0/1
-				Vn			=> k--: Natural range 0 to gcst_Blake_Vn-1 -- 0/1
+				Rn		=> i,--: Natural range 0 to gcst_Blake_Round-1; -- 0~11
+				Gn		=> j,--: Natural range 0 to gcst_Blake_Gn-1; -- 0/1
+				Vn		=> k--: Natural range 0 to gcst_Blake_Vn-1 -- 0/1
 			)
 			port map(
 				v_i		=> sgn_V(i*gcst_Blake_Gn*gcst_Blake_Vn + j*gcst_Blake_Vn + k),--: in	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
@@ -93,8 +91,7 @@ i0100: for i in 0 to gcst_Blake_Round-1 generate
 				m_o		=> sgn_m(i*gcst_Blake_Gn*gcst_Blake_Vn + j*gcst_Blake_Vn + k+1),--: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 				
 				clk		=> clk,--: in	std_logic;
-				sclr		=> sclr,--: in	std_logic := '0';
-				aclr		=> aclr--: in	std_logic := '0'
+				aclr	=> aclr--: in	std_logic := '0'
 			);
 		end generate i0111;
 	end generate i0110;

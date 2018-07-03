@@ -30,13 +30,12 @@ entity Blake2b_Lite is
 port (
 	Param		: in	typ_Blake_Param; -- must be hold until calculate finish
 	msg_i		: in	typ_1D_Word(gcst_Blake_WW-1 downto 0); -- 128-byte (16 double word) chunk of message to compress
-	isLast	: in	std_logic := '1'; -- '0' not last data '1' last data Indicates if this is the final round of compression
-	Count		: in	unsigned(2*gcst_Blake_SubWW*gcst_WW-1 downto 0); -- 16B=128b Count of bytes that have been fed into the Compression
+	isLast		: in	std_logic := '1'; -- '0' not last data '1' last data Indicates if this is the final round of compression
+	Count		: in	unsigned(2*gcst_Blake_SubWW*gcst_WW-1 downto 0); -- 16B=128b Count of bytes that have been fed into the Compression(include current bytes)
 	
-	hash_o	: out	typ_1D_Word(gcst_Blake_WW/2-1 downto 0); -- 64B
+	hash_o		: out	typ_1D_Word(gcst_Blake_WW/2-1 downto 0); -- 64B
 	
-	clk		: in	std_logic;
-	sclr		: in	std_logic := '0';
+	clk			: in	std_logic;
 	aclr		: in	std_logic := '0'
 );
 end Blake2b_Lite;
@@ -55,7 +54,6 @@ port (
 	v_o		: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 	
 	clk		: in	std_logic;
-	sclr		: in	std_logic := '0';
 	aclr		: in	std_logic := '0'
 );
 end component;
@@ -94,7 +92,7 @@ i1500: for i in 0 to 16-1 generate
 	sgn_Param(i+32) <= Param.Salt((i+1)*gcst_WW-1 downto i*gcst_WW);
 end generate i1500;
 i1600: for i in 0 to 16-1 generate
-	sgn_Param(i+48) <= Param.Personalization((i+1)*gcst_WW-1 downto i*gcst_WW);
+	sgn_Param(i+48) <= Param.Personal((i+1)*gcst_WW-1 downto i*gcst_WW);
 end generate i1600;
 
 i0100: for i in 0 to gcst_Blake_WW/2-1 generate
@@ -149,7 +147,6 @@ port map(
 	v_o		=> sgn_V_o,--: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 	
 	clk		=> clk,--: in	std_logic;
-	sclr		=> sclr,--: in	std_logic := '0';
 	aclr		=> aclr--: in	std_logic := '0'
 );
 

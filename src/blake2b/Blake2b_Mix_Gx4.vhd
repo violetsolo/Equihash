@@ -33,14 +33,13 @@ generic(
 	Vn			: Natural range 0 to gcst_Blake_Vn-1:= 0 -- 0/1
 );
 port (
-	v_i		: in	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
-	m_i		: in	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
+	v_i			: in	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
+	m_i			: in	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 	
-	v_o		: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
-	m_o		: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
+	v_o			: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
+	m_o			: out	typ_1D_Blake8W(gcst_Blake_SubWn-1 downto 0);
 	
-	clk		: in	std_logic;
-	sclr		: in	std_logic := '0';
+	clk			: in	std_logic;
 	aclr		: in	std_logic := '0'
 );
 end Blake2b_Mix_Gx4;
@@ -56,24 +55,23 @@ constant cst_Num_GSect	: Positive := gcst_Blake_SubWn/cst_Num_G/gcst_Blake_Gn; -
 --===================== user-defined component declare =====================--
 component Blake2b_Mix_G
 generic(
-	Ror1			: Positive; --32/16
-	Ror2			: Positive --24/63
+	Ror1		: Positive; --32/16
+	Ror2		: Positive --24/63
 );
 port (
-	Va_i			: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-	Vb_i			: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-	Vc_i			: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-	Vd_i			: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Va_i		: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Vb_i		: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Vc_i		: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Vd_i		: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
 	
 	x_i			: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
 	
-	Va_o			: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-	Vb_o			: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-	Vc_o			: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-	Vd_o			: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Va_o		: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Vb_o		: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Vc_o		: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+	Vd_o		: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
 	
-	clk		: in	std_logic;
-	sclr		: in	std_logic := '0';
+	clk			: in	std_logic;
 	aclr		: in	std_logic := '0'
 );
 end component;
@@ -93,28 +91,26 @@ i0100: for i in 0 to gcst_Blake_SubWn-1 generate
 	sgn_Vi(i) <= v_i(cst_VMix_Tbl(Gn, i));
 end generate i0100;
 
-
 i0200: for i in 0 to cst_Num_G-1 generate
 	inst01: Blake2b_Mix_G
 	generic map(
-		Ror1			=> cst_ROR(Vn*2 + 0),--: Positive; --32/16
-		Ror2			=> cst_ROR(Vn*2 + 1)--: Positive --24/63
+		Ror1		=> cst_ROR(Vn*2 + 0),--: Positive; --32/16
+		Ror2		=> cst_ROR(Vn*2 + 1)--: Positive --24/63
 	)
 	port map(
-		Va_i			=> sgn_Vi(i*cst_Num_vSect+0),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-		Vb_i			=> sgn_Vi(i*cst_Num_vSect+1),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-		Vc_i			=> sgn_Vi(i*cst_Num_vSect+2),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-		Vd_i			=> sgn_Vi(i*cst_Num_vSect+3),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Va_i		=> sgn_Vi(i*cst_Num_vSect+0),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Vb_i		=> sgn_Vi(i*cst_Num_vSect+1),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Vc_i		=> sgn_Vi(i*cst_Num_vSect+2),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Vd_i		=> sgn_Vi(i*cst_Num_vSect+3),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
 		
 		x_i			=> sgn_m_i(cst_Sigma_Tbl(Rn, Gn * cst_Num_G * cst_Num_GSect + Vn + i*gcst_Blake_Vn)),--: in	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
 		
-		Va_o			=> sgn_Vo(i*cst_Num_vSect+0),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-		Vb_o			=> sgn_Vo(i*cst_Num_vSect+1),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-		Vc_o			=> sgn_Vo(i*cst_Num_vSect+2),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
-		Vd_o			=> sgn_Vo(i*cst_Num_vSect+3),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Va_o		=> sgn_Vo(i*cst_Num_vSect+0),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Vb_o		=> sgn_Vo(i*cst_Num_vSect+1),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Vc_o		=> sgn_Vo(i*cst_Num_vSect+2),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
+		Vd_o		=> sgn_Vo(i*cst_Num_vSect+3),--: out	unsigned(gcst_Blake_SubWW*gcst_WW-1 downto 0);
 		
-		clk		=> clk,--: in	std_logic;
-		sclr		=> sclr,
+		clk			=> clk,--: in	std_logic;
 		aclr		=> aclr--: in	std_logic
 	);
 end generate i0200;

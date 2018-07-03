@@ -26,9 +26,9 @@ use work.LgGlobal_pkg.all;
 
 package Blake2b_pkg is
 --constants
-constant gcst_Blake_SubWW		: Positive := 8; -- word width
-constant gcst_Blake_SubWn		: Positive := 16; -- Number or word
-constant gcst_Blake_WW			: Positive := gcst_Blake_SubWn*gcst_Blake_SubWW; -- 128
+constant gcst_Blake_SubWW		: Positive := gcst_WW; -- word width 8
+constant gcst_Blake_SubWn		: Positive := 16; -- Number of word
+constant gcst_Blake_WW			: Positive := gcst_Blake_SubWn*gcst_Blake_SubWW; -- 128 = 16*8
 constant gcst_Blake_Round		: Positive := 12; -- mix round
 
 constant gcst_Blake_MixGDL		: Positive := 4; -- mix G function delay
@@ -63,13 +63,13 @@ constant cst_ROR		: typ_1D_Nat(0 to 4-1) := (32, 24, 16, 63);
 
 type typ_IV_Tbl is array (0 to gcst_Blake_WW/2-1) of unsigned(gcst_WW-1 downto 0);
 constant cst_IV_Tbl : typ_IV_Tbl := (
-	x"08", x"c9", x"bc", x"f3", x"67", x"e6", x"09", x"6a", 	
+	x"08", x"c9", x"bc", x"f3", x"67", x"e6", x"09", x"6a", 
 	x"3b", x"a7", x"ca", x"84", x"85", x"ae", x"67", x"bb", 
 	x"2b", x"f8", x"94", x"fe", x"72", x"f3", x"6e", x"3c", 
 	x"f1", x"36", x"1d", x"5f", x"3a", x"f5", x"4f", x"a5", 
 	x"d1", x"82", x"e6", x"ad", x"7f", x"52", x"0e", x"51", 
-	x"1f", x"6c", x"3e", x"2b", x"8c", x"68", x"05", x"9b", 	
-	x"6b", x"bd", x"41", x"fb", x"ab", x"d9", x"83", x"1f",	
+	x"1f", x"6c", x"3e", x"2b", x"8c", x"68", x"05", x"9b", 
+	x"6b", x"bd", x"41", x"fb", x"ab", x"d9", x"83", x"1f", 
 	x"79", x"21", x"7e", x"13", x"19", x"cd", x"e0", x"5b"
 	
 );
@@ -83,14 +83,14 @@ record
 	Key_Len			: unsigned(1*gcst_WW-1 downto 0); -- 2
 	Fanout			: unsigned(1*gcst_WW-1 downto 0); -- 3
 	Deepth			: unsigned(1*gcst_WW-1 downto 0); -- 4
-	Leaf_Len			: unsigned(4*gcst_WW-1 downto 0); -- 8
+	Leaf_Len		: unsigned(4*gcst_WW-1 downto 0); -- 8
 	Node_Offset		: unsigned(4*gcst_WW-1 downto 0); -- 12
 	Xof_Len			: unsigned(4*gcst_WW-1 downto 0); -- 16
 	Node_Deepth		: unsigned(1*gcst_WW-1 downto 0); -- 17
 	Inner_Len		: unsigned(1*gcst_WW-1 downto 0); -- 18
 	Rvs				: unsigned(14*gcst_WW-1 downto 0); -- 32
-	Salt				: unsigned(16*gcst_WW-1 downto 0); -- 48
-	Personalization	: unsigned(16*gcst_WW-1 downto 0); -- 64
+	Salt			: unsigned(16*gcst_WW-1 downto 0); -- 48
+	Personal		: unsigned(16*gcst_WW-1 downto 0); -- 64
 end record;
 
 -- all purpose funtion
